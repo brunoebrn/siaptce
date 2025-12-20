@@ -1,0 +1,6 @@
+pandas
+fdb
+lxml
+sqlalchemy
+streamlit
+openpyxl
