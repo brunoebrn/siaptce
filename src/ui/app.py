@@ -1,139 +1,290 @@
 import streamlit as st
 import sys
 import os
-import subprocess
-import pandas as pd
+import time
 
 # Adicionar root ao path para imports funcionarem
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '../../')))
 
-from src.ingestion.connector import FirebirdConnector
-from src.transformation.processor import DataProcessor
-from src.serializer.xml_generator import XMLSerializer
+import src.ingestion.firebird_engine
+import src.ui.layouts.layout_11_1
+import src.ui.layouts.layout_11_2
+import src.ui.db_explorer
+import importlib
+importlib.reload(src.ingestion.firebird_engine)
+importlib.reload(src.ui.layouts.layout_11_1)
+importlib.reload(src.ui.layouts.layout_11_2)
+importlib.reload(src.ui.db_explorer)
+from src.ingestion.firebird_engine import HealthDataIngestor
+import src.ui.layouts.layout_11_1 as layout_11_1
+import src.ui.layouts.layout_11_2 as layout_11_2
+import src.ui.layouts.layout_11_3 as layout_11_3
+import src.ui.layouts.layout_11_4 as layout_11_4
+import src.ui.layouts.layout_11_5 as layout_11_5
+import src.ui.db_explorer as db_explorer
 
 def main():
-    st.set_page_config(layout="wide")
-    st.title("SIAP - Gerador de XML")
+    st.set_page_config(
+        page_title="SIAP - Auditoria e Ingestão",
+        layout="wide",
+        initial_sidebar_state="expanded"
+    )
+
+    # Initialize Session State
+    if 'step' not in st.session_state:
+        st.session_state.step = 'setup'
+    if 'db_paths' not in st.session_state:
+        st.session_state.db_paths = {
+            'CNES': '',
+            'FPO': '',
+            'SIH': '',
+            'SIA': ''
+        }
+    if 'db_status' not in st.session_state:
+        st.session_state.db_status = {
+            'CNES': None,
+            'FPO': None,
+            'SIH': None,
+            'SIA': None
+        }
+    if 'db_errors' not in st.session_state:
+        st.session_state.db_errors = {}
+
+    # --- Global Filters ---
+    st.sidebar.header("Configurações Gerais")
+    st.session_state['global_codigo_tce'] = st.sidebar.text_input("Código TCE", "000")
+    st.session_state['global_exercicio'] = st.sidebar.text_input("Exercício", "2024")
+    st.session_state['global_mes'] = st.sidebar.selectbox("Mês", [f"{i:02d}" for i in range(1, 13)])
+    st.sidebar.divider()
+
+    # --- Sidebar Navigation ---
+    render_sidebar_navigation()
+
+    # --- Main Content Routing ---
+    if st.session_state.step == 'setup':
+        render_setup_screen()
+    elif st.session_state.step == 'dashboard':
+        render_dashboard_screen()
+    elif st.session_state.step == 'db_explorer':
+        db_explorer.render_db_explorer()
+    elif st.session_state.step == 'layout_11_1':
+        layout_11_1.render_layout_11_1()
+    elif st.session_state.step == 'layout_11_2':
+        layout_11_2.render_layout_11_2()
+    elif st.session_state.step == 'layout_11_3':
+        layout_11_3.render_layout_11_3()
+    elif st.session_state.step == 'layout_11_4':
+        layout_11_4.render_layout_11_4()
+    elif st.session_state.step == 'layout_11_5':
+        layout_11_5.render_layout_11_5()
+
+def render_sidebar_navigation():
+    """Renders buttons in the sidebar based on the current context."""
     
-    st.sidebar.header("Configuração de Conexão")
-    dsn = st.sidebar.text_input("Caminho do Banco (DSN)", value="localhost:C:/path/to/db.fdb")
-    # Auto-clean input: remove quotes and whitespace common in Windows paths
-    if dsn:
-        dsn = dsn.strip().strip('"')
-    user = st.sidebar.text_input("Usuário", value="SYSDBA")
-    password = st.sidebar.text_input("Senha", value="masterkey", type="password")
+    # Don't show nav if in Setup
+    if st.session_state.step == 'setup':
+        return
+
+    st.sidebar.subheader("Navegação")
     
-    if st.button("Conectar e Listar Tabelas"):
-        st.info("Iniciando processo Híbrido (UI 64-bit -> Ingestão 32-bit)...")
+    # "Voltar para Configuração" - Only on Dashboard
+    if st.session_state.step == 'dashboard':
+        if st.sidebar.button("⬅️ Voltar para Configuração", use_container_width=True):
+            st.session_state.step = 'setup'
+            st.rerun()
+        st.sidebar.divider()
+
+    # "Voltar ao Painel" - On all pages EXCEPT Dashboard and Setup
+    if st.session_state.step != 'dashboard' and st.session_state.step != 'setup':
+        if st.sidebar.button("🏠 Voltar ao Painel", use_container_width=True):
+             st.session_state.step = 'dashboard'
+             st.rerun()
+        st.sidebar.divider()
         
-        # Caminho do worker 32-bit
-        ingestion_worker = "src/ingestion/run_ingestion.py"
-        output_file = os.path.abspath(os.path.join("data/sqlite", "ingestion_result.json"))
+    # List of Layouts (Direct Access)
+    st.sidebar.markdown("**Acesso Rápido**")
+    
+    # Use distinct keys to avoid conflict if multiple buttons exist
+    if st.sidebar.button("🏥 11.1 - Estabelecimentos", use_container_width=True):
+        st.session_state.step = 'layout_11_1'
+        st.rerun()
         
-        # Comando para executar o script no ambiente 32-bit
-        # Assumindo que 'py -3.11-32' está disponível
-        cmd = [
-            "py", "-3.11-32", ingestion_worker,
-            "--dsn", dsn,
-            "--user", user,
-            "--password", password,
-            "--output", output_file
-        ]
+    if st.sidebar.button("👨‍⚕️ 11.2 - Vínculos", use_container_width=True):
+        st.session_state.step = 'layout_11_2'
+        st.rerun()
+
+    if st.sidebar.button("🛏️ 11.3 - Leitos", use_container_width=True):
+        st.session_state.step = 'layout_11_3'
+        st.rerun()
+
+    if st.sidebar.button("🔬 11.4 - Equipamentos", use_container_width=True):
+        st.session_state.step = 'layout_11_4'
+        st.rerun()
         
-        try:
-            result = subprocess.run(cmd, check=True, capture_output=True, text=True)
-            st.success("Conexão (32-bit) OK!")
-            # st.text(result.stdout)
-            
-            # Carregar resultado
-            if os.path.exists(output_file):
-                df_tables = pd.read_json(output_file)
-                st.session_state['tables'] = df_tables['TableName'].tolist()
-                st.session_state['dsn'] = dsn
-                st.session_state['user'] = user
-                st.session_state['password'] = password
-                st.session_state['connected'] = True
+    if st.sidebar.button("💰 11.5 - Orçamento", use_container_width=True):
+        st.session_state.step = 'layout_11_5'
+        st.rerun()
+        
+    if st.sidebar.button("📂 DB Explorer", use_container_width=True):
+        st.session_state.step = 'db_explorer'
+        st.rerun()
+
+
+def render_setup_screen():
+    st.title("🔧 Configuração de Fontes de Dados")
+    st.markdown("Informe o caminho local dos arquivos de banco de dados (.gdb ou .fdb) para iniciar a sessão.")
+    st.divider()
+
+    col1, col2 = st.columns([2, 1])
+
+    with col1:
+        st.subheader("Caminhos dos Arquivos")
+        
+        # Inputs for each DB
+        st.session_state.db_paths['CNES'] = st.text_input("Banco de Dados CNES", value=st.session_state.db_paths['CNES'], placeholder="C:\\dados\\cnes.gdb")
+        st.session_state.db_paths['FPO'] = st.text_input("Banco de Dados FPO", value=st.session_state.db_paths['FPO'], placeholder="C:\\dados\\fpo.gdb")
+        st.session_state.db_paths['SIH'] = st.text_input("Banco de Dados SIH", value=st.session_state.db_paths['SIH'], placeholder="C:\\dados\\sih.gdb")
+        st.session_state.db_paths['SIA'] = st.text_input("Banco de Dados SIA", value=st.session_state.db_paths['SIA'], placeholder="C:\\dados\\sia.gdb")
+
+    with col2:
+        st.subheader("Status da Validação")
+        st.markdown("") 
+        st.markdown("")
+        
+        # Display Status Icons
+        for db, status in st.session_state.db_status.items():
+            if status is True:
+                st.success(f"**{db}**: Conectado ✅")
+            elif status is False:
+                st.error(f"**{db}**: Falha ❌")
+                err_msg = st.session_state.db_errors.get(db)
+                if err_msg:
+                    st.caption(f"📝 {err_msg}")
             else:
-                st.error("Arquivo de saída não encontrado.")
+                st.info(f"**{db}**: Aguardando...")
+
+    st.divider()
+
+    # Action Buttons
+    c_btn1, c_btn2 = st.columns([1, 4])
+    
+    with c_btn1:
+        if st.button("Validar Bases de Dados", type="primary", use_container_width=True):
+            with st.spinner("Testando conexões..."):
+                all_valid = True
+                for db in ['CNES', 'FPO', 'SIH', 'SIA']:
+                    path = st.session_state.db_paths.get(db)
+                    
+                    if db in st.session_state.db_errors:
+                        del st.session_state.db_errors[db]
+                        
+                    if path:
+                        path = path.strip().strip('"')
+                        st.session_state.db_paths[db] = path 
+                        
+                        success, message = HealthDataIngestor.check_connection(path)
+                        st.session_state.db_status[db] = success
+                        
+                        if not success:
+                            st.session_state.db_errors[db] = message
+                            all_valid = False
+                    else:
+                        st.session_state.db_status[db] = False
+                        st.session_state.db_errors[db] = "Caminho não informado."
+                        all_valid = False
                 
-        except subprocess.CalledProcessError as e:
-            st.error("Falha na conexão 32-bit:")
-            st.code(e.stderr)
-        except Exception as e:
-            st.error(f"Erro inesperado: {e}")
+                if all_valid:
+                    st.toast("Todas as conexões foram bem-sucedidas!", icon="✅")
+                else:
+                    st.toast("Algumas conexões falharam. Verifique os caminhos.", icon="❌")
+                
+                time.sleep(0.5) 
+                st.rerun()
+    
+    at_least_one_valid = any(st.session_state.db_status.values())
+    
+    with c_btn2:
+        if at_least_one_valid:
+            if st.button("Avançar para Layouts ➡️", type="secondary"):
+                st.session_state.step = 'dashboard'
+                st.rerun()
+        else:
+            st.button("Avançar para Layouts ➡️", disabled=True, help="Valide pelo menos uma base de dados para continuar.")
 
-    # Section for Interactive Exploration (Connection Persisted in Session)
-    if st.session_state.get('connected'):
-        st.divider()
-        st.subheader("Explorador de Dados")
+def render_dashboard_screen():
+    st.title("Painel de Controle")
+    st.markdown("Acesso aos Layouts do SIAP.")
+    
+    # Explorer Button
+    if st.button("🔍 Explorador de Banco de Dados", type="secondary"):
+        st.session_state.step = 'db_explorer'
+        st.rerun()
         
-        table_list = st.session_state.get('tables', [])
-        selected_table = st.selectbox("Selecione uma tabela para visualizar:", [""] + table_list)
-        
-        if selected_table:
-            col1, col2 = st.columns([1, 1])
-            
-            with col1:
-                if st.button(f"Carregar Preview (50 linhas)"):
-                    with st.spinner(f"Lendo tabela {selected_table}..."):
-                        # Call worker again specifically for this table
-                        ingestion_worker = "src/ingestion/run_ingestion.py"
-                        output_file_table = os.path.abspath(os.path.join("data/sqlite", "table_data.json"))
-                        
-                        cmd_table = [
-                            "py", "-3.11-32", ingestion_worker,
-                            "--dsn", st.session_state['dsn'],
-                            "--user", st.session_state['user'],
-                            "--password", st.session_state['password'],
-                            "--output", output_file_table,
-                            "--table", selected_table
-                        ]
-                        
-                        try:
-                            subprocess.run(cmd_table, check=True, capture_output=True, text=True)
-                            if os.path.exists(output_file_table):
-                                df_data = pd.read_json(output_file_table)
-                                st.write(f"**Preview de {selected_table}:**")
-                                st.dataframe(df_data, use_container_width=True)
-                            else:
-                                st.warning("Nenhum dado retornado.")
-                        except subprocess.CalledProcessError as e:
-                            st.error(f"Erro ao ler tabela {selected_table}:")
-                            st.code(e.stderr)
+    st.divider()
 
-            with col2:
-                if st.button("Exportar CSV Completo"):
-                    with st.spinner(f"Exportando TODOS os dados de {selected_table}... (Isso pode demorar)"):
-                         ingestion_worker = "src/ingestion/run_ingestion.py"
-                         output_file_full = os.path.abspath(os.path.join("data/sqlite", "full_table_export.json"))
-                         
-                         cmd_full = [
-                            "py", "-3.11-32", ingestion_worker,
-                            "--dsn", st.session_state['dsn'],
-                            "--user", st.session_state['user'],
-                            "--password", st.session_state['password'],
-                            "--output", output_file_full,
-                            "--table", selected_table,
-                            "--full" # Flag for no limit
-                        ]
-                         
-                         try:
-                            subprocess.run(cmd_full, check=True, capture_output=True, text=True)
-                            if os.path.exists(output_file_full):
-                                df_full = pd.read_json(output_file_full)
-                                csv = df_full.to_csv(index=False).encode('utf-8')
-                                
-                                st.download_button(
-                                    label="📥 Baixar CSV Agora",
-                                    data=csv,
-                                    file_name=f"{selected_table}.csv",
-                                    mime="text/csv",
-                                )
-                            else:
-                                st.error("Falha na exportação.")
-                         except subprocess.CalledProcessError as e:
-                            st.error(f"Erro na exportação de {selected_table}:")
-                            st.code(e.stderr)
+    # Layouts Cards
+    
+    # Grupo CNES
+    st.subheader("Grupo CNES")
+    c1, c2, c3, c4 = st.columns(4)
+    with c1:
+        st.info("Layout 11.1")
+        st.caption("Estabelecimentos")
+        if st.button("Acessar 11.1", key="btn_dash_11_1", use_container_width=True):
+            st.session_state.step = 'layout_11_1'
+            st.rerun()
+    with c2:
+        st.info("Layout 11.2")
+        st.caption("Vínculo Profissional")
+        if st.button("Acessar 11.2", key="btn_dash_11_2", use_container_width=True):
+             st.session_state.step = 'layout_11_2'
+             st.rerun()
+    with c3:
+        st.info("Layout 11.3")
+        st.caption("Leitos")
+        if st.button("Acessar 11.3", key="btn_dash_11_3", use_container_width=True):
+            st.session_state.step = 'layout_11_3'
+            st.rerun()
+    with c4:
+        st.info("Layout 11.4")
+        st.caption("Equipamentos")
+        if st.button("Acessar 11.4", key="btn_dash_11_4", use_container_width=True):
+            st.session_state.step = 'layout_11_4'
+            st.rerun()
+
+    st.markdown("---")
+
+    # Grupo FPO e SIH
+    col_fpo, col_sih = st.columns(2)
+    
+    with col_fpo:
+        st.subheader("Grupo FPO")
+        st.warning("Layout 11.5")
+        st.caption("Ficha de Programação Orçamentária")
+        if st.button("Acessar 11.5", key="btn_dash_11_5", use_container_width=True):
+             st.session_state.step = 'layout_11_5'
+             st.rerun()
+        
+    with col_sih:
+        st.subheader("Grupo SIH")
+        st.error("Layout 11.8")
+        st.caption("Sistema de Informação Hospitalar")
+        if st.button("Acessar 11.8", key="btn_dash_11_8", use_container_width=True):
+             pass # Placeholder
+
+    st.markdown("---")
+
+    # Grupo SIA
+    st.subheader("Grupo SIA")
+    c_sia1, c_sia2 = st.columns(2)
+    with c_sia1:
+        st.success("Layout 11.6")
+        st.caption("Produção Ambulatorial")
+        st.button("Acessar 11.6", key="btn_dash_11_6", use_container_width=True)
+    with c_sia2:
+        st.success("Layout 11.7")
+        st.caption("Apuração Ambulatorial")
+        st.button("Acessar 11.7", key="btn_dash_11_7", use_container_width=True)
 
 if __name__ == "__main__":
     main()

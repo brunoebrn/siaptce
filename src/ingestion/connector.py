@@ -54,7 +54,12 @@ class FirebirdConnector:
                 local_args = connect_args.copy()
                 # Remove localhost prefix if it exists in input (unlikely per current logic but safe)
                 raw_dsn = self.dsn.replace('localhost:', '')
-                if ':' in raw_dsn: # If user typed IP, we can't do local
+                
+                # Check for remote IP (e.g., 192.168.1.1:C:/db) BUT allow Windows Drive letters (C:\db)
+                # If there's a colon, ensure it's the 2nd char (index 1) which implies a Drive Letter
+                is_windows_drive = len(raw_dsn) > 1 and raw_dsn[1] == ':'
+                
+                if ':' in raw_dsn and not is_windows_drive:
                     raise Exception("DSN contém IP remoto, modo local ignorado.")
                 
                 local_args['database'] = raw_dsn 
@@ -77,7 +82,7 @@ class FirebirdConnector:
                    else:
                        print(f"- Arquivo '{self.dsn}' NÃO ENCONTRADO.")
                 
-                raise last_error
+                raise e_local
         except Exception as e:
             if "fb_interpret" in str(e):
                 print("ERRO DE COMPATIBILIDADE: A 'fbclient.dll' fornecida (v1.5) é muito antiga para este driver.")
