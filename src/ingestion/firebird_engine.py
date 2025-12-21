@@ -30,7 +30,7 @@ class HealthDataIngestor:
         
         # Command to run in 32-bit environment
         cmd = [
-            "py", "-3.11-32", worker_script,
+            sys.executable, worker_script,
             "--path", path,
             "--user", user,
             "--password", password
@@ -73,7 +73,7 @@ class HealthDataIngestor:
         worker_script = os.path.join(os.path.dirname(__file__), 'worker_schema.py')
         
         cmd = [
-            "py", "-3.11-32", worker_script,
+            sys.executable, worker_script,
             "--dsn", path.strip().strip('"'),
             "--user", user,
             "--password", password
@@ -115,7 +115,7 @@ class HealthDataIngestor:
         mapping_json = json.dumps(mapping)
         
         cmd = [
-            "py", "-3.11-32", worker_script,
+            sys.executable, worker_script,
             "--dsn", path.strip().strip('"'),
             "--user", user,
             "--password", password,
@@ -144,7 +144,7 @@ class HealthDataIngestor:
         worker_script = os.path.join(os.path.dirname(__file__), 'worker_query.py')
         
         cmd = [
-            "py", "-3.11-32", worker_script,
+            sys.executable, worker_script,
             "--dsn", path.strip().strip('"'),
             "--user", user,
             "--password", password,
@@ -194,7 +194,7 @@ class HealthDataIngestor:
         python_exe = "py -3.11-32" # Transformation requires fdb (32bit)
         
         cmd = [
-            'py', '-3.11-32', worker_script,
+            sys.executable, worker_script,
             '--dsn', path.strip().strip('"'),
             '--user', user,
             '--password', password,
@@ -221,7 +221,7 @@ class HealthDataIngestor:
         mapping_json = json.dumps(mapping)
         
         cmd = [
-            'py', '-3.11-32', worker_script,
+            sys.executable, worker_script,
             '--dsn', path.strip().strip('"'),
             '--user', user,
             '--password', password,
@@ -247,7 +247,7 @@ class HealthDataIngestor:
         mapping_json = json.dumps(mapping)
         
         cmd = [
-            'py', '-3.11-32', worker_script,
+            sys.executable, worker_script,
             '--dsn', path.strip().strip('"'),
             '--user', user,
             '--password', password,
@@ -276,7 +276,7 @@ class HealthDataIngestor:
         competencia = f"{year}{month}"
         
         cmd = [
-            'py', '-3.11-32', worker_script,
+            sys.executable, worker_script,
             '--dsn', path.strip().strip('"'),
             '--user', user,
             '--password', password,
@@ -307,7 +307,7 @@ class HealthDataIngestor:
         competencia = f"{year}{month}"
         
         cmd = [
-            'py', '-3.11-32', worker_script,
+            sys.executable, worker_script,
             '--dsn', path.strip().strip('"'),
             '--user', user,
             '--password', password,
