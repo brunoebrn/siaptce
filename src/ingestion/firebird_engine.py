@@ -293,3 +293,34 @@ class HealthDataIngestor:
             return False, f"Erro no Worker 11.5: {e.stderr}"
         except Exception as e:
             return False, f"Erro: {str(e)}"
+
+    @staticmethod
+    def generate_layout_11_8(path: str, mapping: dict, year: str, month: str, user: str = 'SYSDBA', password: str = 'masterkey') -> tuple[bool, str]:
+        """
+        Runs the ETL process for Layout 11.8 (SIH - AutorizacaoInternacaoHospitalar)
+        Filters by Competence (AAAAMM)
+        """
+        worker_script = os.path.join(os.path.dirname(__file__), 'worker_11_8.py')
+        output_db = os.path.join(os.path.dirname(path), 'siap_data.db')
+        mapping_json = json.dumps(mapping)
+        
+        competencia = f"{year}{month}"
+        
+        cmd = [
+            'py', '-3.11-32', worker_script,
+            '--dsn', path.strip().strip('"'),
+            '--user', user,
+            '--password', password,
+            '--output', output_db,
+            '--mapping', mapping_json,
+            '--competencia', competencia
+        ]
+        
+        try:
+            result = subprocess.run(cmd, capture_output=True, text=True, check=True)
+            print(result.stdout)
+            return True, output_db
+        except subprocess.CalledProcessError as e:
+            return False, f"Erro no Worker 11.8: {e.stderr}"
+        except Exception as e:
+            return False, f"Erro: {str(e)}"

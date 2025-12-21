@@ -21,6 +21,7 @@ import src.ui.layouts.layout_11_2 as layout_11_2
 import src.ui.layouts.layout_11_3 as layout_11_3
 import src.ui.layouts.layout_11_4 as layout_11_4
 import src.ui.layouts.layout_11_5 as layout_11_5
+import src.ui.layouts.layout_11_8 as layout_11_8
 import src.ui.db_explorer as db_explorer
 
 def main():
@@ -77,6 +78,8 @@ def main():
         layout_11_4.render_layout_11_4()
     elif st.session_state.step == 'layout_11_5':
         layout_11_5.render_layout_11_5()
+    elif st.session_state.step == 'layout_11_8':
+        layout_11_8.render_layout_11_8()
 
 def render_sidebar_navigation():
     """Renders buttons in the sidebar based on the current context."""
@@ -123,6 +126,10 @@ def render_sidebar_navigation():
         
     if st.sidebar.button("💰 11.5 - Orçamento", use_container_width=True):
         st.session_state.step = 'layout_11_5'
+        st.rerun()
+
+    if st.sidebar.button("🚑 11.8 - Internação", use_container_width=True):
+        st.session_state.step = 'layout_11_8'
         st.rerun()
         
     if st.sidebar.button("📂 DB Explorer", use_container_width=True):
@@ -270,7 +277,8 @@ def render_dashboard_screen():
         st.error("Layout 11.8")
         st.caption("Sistema de Informação Hospitalar")
         if st.button("Acessar 11.8", key="btn_dash_11_8", use_container_width=True):
-             pass # Placeholder
+             st.session_state.step = 'layout_11_8'
+             st.rerun()
 
     st.markdown("---")
 

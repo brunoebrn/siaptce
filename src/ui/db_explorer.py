@@ -11,6 +11,8 @@ def render_db_explorer():
     st.header("🔍 Explorador de Banco de Dados")
     st.markdown("Visualize as tabelas e dados brutos dos bancos conectados.")
     
+    st.sidebar.divider()
+    
     # 1. Database Selection
     available_dbs = [name for name, path in st.session_state.db_paths.items() if path]
     if not available_dbs:

@@ -89,7 +89,8 @@ def render_xml_button(df: pd.DataFrame, layout_type: str):
                 '11.2': 'VinculoProfissionalSaude',
                 '11.3': 'EstabelecimentoLeito',
                 '11.4': 'EstabelecimentoEquipamento',
-                '11.5': 'FichaProgramacaoOrcamentaria'
+                '11.5': 'FichaProgramacaoOrcamentaria',
+                '11.8': 'AutorizacaoInternacaoHospitalar'
             }
             base_name = filename_map.get(layout_type, f"layout_{layout_type}")
             
@@ -116,7 +117,8 @@ def generate_xml_string(df, layout_type, codigo, exercicio, mes):
         '11.2': 'VinculoProfissionalSaude',
         '11.3': 'EstabelecimentoLeito',
         '11.4': 'EstabelecimentoEquipamento',
-        '11.5': 'FichaProgramacaoOrcamentaria'
+        '11.5': 'FichaProgramacaoOrcamentaria',
+        '11.8': 'AutorizacaoInternacaoHospitalar'
     }
     
     row_tag = row_tag_map.get(layout_type, "Registro")
@@ -152,6 +154,17 @@ def generate_xml_string(df, layout_type, codigo, exercicio, mes):
             'CNES': 'CNES', 'PROCEDIMENTO': 'Procedimento',
             'FINANCIAMENTO': 'Financiamento', 'QUANTIDADE': 'Quantidade',
             'VALORUNITARIO': 'ValorUnitario', 'VALORTOTAL': 'ValorTotal'
+        },
+        '11.8': {
+            'CNES': 'CNES', 'NUMEROAIH': 'NumeroAIH', 'IDENTIFICACAO': 'Identificacao',
+            'ESPECIALIDADELEITO': 'EspecialidadeLeito', 'MODALIDADEINTERNACAO': 'ModalidadeInternacao',
+            'AIHANTERIOR': 'AIHAnterior', 'DATAEMISSAO': 'DataEmissao',
+            'DATAINTERNACAO': 'DataInternacao', 'DATASAIDA': 'DataSaida',
+            'PROCEDIMENTOSOLICITADO': 'ProcedimentoSolicitado',
+            'CARATERINTERNACAO': 'CaraterInternacao', 'MOTIVOSAIDA': 'MotivoSaida',
+            'CNSSOLICITANTE': 'CNSSolicitante', 'CNSRESPONSAVEL': 'CNSResponsavel',
+            'CNSAUTORIZADOR': 'CNSAutorizador', 'DIAGNOSTICOPRINCIPAL': 'DiagnosticoPrincipal',
+            'CNSPACIENTE': 'CNSPaciente'
         }
     }
     
