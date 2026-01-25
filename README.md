@@ -37,6 +37,10 @@ A interface possui um passo-a-passo lateral:
    - O sistema fará o mapeamento automático das colunas.
    - Clique em **Validar e Converter**.
 3. **DB Explorer**: Uma ferramenta para "espiar" as tabelas do banco de dados bruto, útil para tirar dúvidas sem precisar de ferramentas de TI.
+4. **Conversor XLSX para XML**:
+   - Permite que você edite os dados exportados em Excel e os converta novamente para o formato XML do TCE.
+   - Valida se o arquivo mantém a estrutura de colunas correta.
+   - Garante a formatação exigida (zeros à esquerda em CNES/CNPJ, tags explícitas, etc.).
 
 ### 4. Encerrando
 Para fechar, clique no botão **❌ Encerrar Sistema** na barra lateral. Isso garante que todas as conexões com o banco sejam fechadas com segurança.
