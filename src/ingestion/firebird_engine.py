@@ -3,12 +3,33 @@ import json
 import os
 import sys
 import pandas as pd
+from src.utils.logger import setup_logger
+
+logger = setup_logger("FirebirdEngine")
 
 class HealthDataIngestor:
     """
     Class responsible for validating and managing connections to Health databases (CNES, FPO, SIH, SIA).
     Uses a 32-bit subprocess to ensure compatibility with legacy Firebird DLLs.
     """
+    
+    @staticmethod
+    def _get_worker_executable():
+        """
+        Determines the implementation of Python to use for workers.
+        Prioritizes 'python_worker/python.exe' (32-bit portable), 
+        falls back to 'python_embed/python.exe' or system python.
+        """
+        # 1. Look for sibling 'python_worker' folder relative to project root
+        # Engine is in src/ingestion/, so root is ../../
+        base_dir = os.path.dirname(os.path.dirname(os.path.dirname(__file__)))
+        worker_path = os.path.join(base_dir, 'python_worker', 'python.exe')
+        
+        if os.path.exists(worker_path):
+            return worker_path
+            
+        # 2. Fallback: use current interpreter (dev mode or incorrectly configured)
+        return sys.executable
     
     @staticmethod
     def check_connection(path: str, user: str = 'SYSDBA', password: str = 'masterkey') -> tuple[bool, str]:
@@ -30,16 +51,21 @@ class HealthDataIngestor:
         
         # Command to run in 32-bit environment
         cmd = [
-            sys.executable, worker_script,
+            HealthDataIngestor._get_worker_executable(), worker_script,
             "--path", path,
             "--user", user,
             "--password", password
         ]
         
         try:
+            logger.info(f"Checking connection to: {path}")
             # Capture stdout to parse JSON result
             proc = subprocess.run(cmd, capture_output=True, text=True, check=True)
             output = proc.stdout.strip()
+            
+            # Log stderr from worker if any
+            if proc.stderr:
+                logger.warning(f"Worker stderr: {proc.stderr}")
             
             # Try to find JSON in the output (ignoring potential print noise)
             # We look for the last line that looks like JSON
@@ -57,7 +83,8 @@ class HealthDataIngestor:
                 return False, f"Erro ao decodificar resposta do worker: {output} | {proc.stderr}"
                 
         except subprocess.CalledProcessError as e:
-            return False, f"Falha na execução do processo 32-bit: {e.stderr}"
+            logger.error(f"Worker crashed: {e.stderr}")
+            return False, f"Falha no Worker 32-bit: {e.stderr}"
         except Exception as e:
             return False, f"Erro inesperado: {str(e)}"
 
@@ -73,7 +100,7 @@ class HealthDataIngestor:
         worker_script = os.path.join(os.path.dirname(__file__), 'worker_schema.py')
         
         cmd = [
-            sys.executable, worker_script,
+            HealthDataIngestor._get_worker_executable(), worker_script,
             "--dsn", path.strip().strip('"'),
             "--user", user,
             "--password", password
@@ -115,7 +142,7 @@ class HealthDataIngestor:
         mapping_json = json.dumps(mapping)
         
         cmd = [
-            sys.executable, worker_script,
+            HealthDataIngestor._get_worker_executable(), worker_script,
             "--dsn", path.strip().strip('"'),
             "--user", user,
             "--password", password,
@@ -124,10 +151,14 @@ class HealthDataIngestor:
         ]
         
         try:
+            logger.info(f"Generating Layout 11.1 for {path}")
             # We check=True, so it raises on 1 exit code
-            subprocess.run(cmd, check=True, capture_output=True, text=True)
+            proc = subprocess.run(cmd, check=True, capture_output=True, text=True)
+            if proc.stderr:
+                logger.warning(f"Worker 11.1 stderr: {proc.stderr}")
             return True, output_db
         except subprocess.CalledProcessError as e:
+            logger.error(f"Worker 11.1 Failed: {e.stderr}")
             return False, f"Erro no ETL: {e.stderr}"
         except Exception as e:
             return False, f"Erro: {str(e)}"
@@ -144,7 +175,7 @@ class HealthDataIngestor:
         worker_script = os.path.join(os.path.dirname(__file__), 'worker_query.py')
         
         cmd = [
-            sys.executable, worker_script,
+            HealthDataIngestor._get_worker_executable(), worker_script,
             "--dsn", path.strip().strip('"'),
             "--user", user,
             "--password", password,
@@ -166,8 +197,11 @@ class HealthDataIngestor:
             else:
                 return False, data.get("error", "Erro desconhecido.")
                 
+        except subprocess.CalledProcessError as e:
+            logger.error(f"Preview Failed: {e.stderr}")
+            return False, f"Erro ao buscar dados: {e.stderr}"
         except Exception as e:
-            return False, f"Erro ao buscar dados: {e}"
+            return False, f"Erro inesperado: {str(e)}"
 
     @staticmethod
     def generate_layout_11_2(path: str, mapping: dict, user: str = 'SYSDBA', password: str = 'masterkey') -> tuple[bool, str]:

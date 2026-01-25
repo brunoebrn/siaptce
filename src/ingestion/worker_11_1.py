@@ -6,7 +6,12 @@ import fdb
 
 # Add root to path
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '../../')))
+
 from src.ingestion.connector import FirebirdConnector
+from src.utils.logger import setup_logger
+
+# Disable file logging for workers
+logger = setup_logger("Worker_11_1", log_to_file=False)
 
 import json
 
@@ -17,20 +22,10 @@ def transform_and_load(dsn, user, password, output_db, mapping_json):
         main_table = mapping.get('table_main')
         cols_map = mapping.get('columns_main', {})
         
-        # secondary mapping is handled if user provides it, for now focusing on main mapping
-        # As per dynamic strategy, secondary table might be advanced. 
-        # Requirement: "Selecionar a correspondência desejada entre colunas e tabelas"
-        # For simplicity in this iteration, we focus on the MAIN table dynamic mapping.
-        # If the user selects a main table, we just map everything from there for now.
-        
         conn_fb = FirebirdConnector(dsn, user, password)
         conn_fb.connect()
         
-        print(f"Extraindo dados de {main_table}...")
-        
-        # Build SELECT query dynamically
-        # TARGET_FIELD -> SOURCE_COLUMN
-        # "CNES": "CO_UNIDADE"
+        logger.info(f"Extraindo dados de {main_table}...")
         
         select_parts = []
         for target, source in cols_map.items():
@@ -48,15 +43,9 @@ def transform_and_load(dsn, user, password, output_db, mapping_json):
         conn_fb.close()
         
         # --- Transformations ---
-        print("Aplicando transformações básicas...")
+        logger.info("Aplicando transformações básicas...")
         
-        # 1. Normalize Column Names to match Logic keys
-        # The query alias might have quotes or case issues depending on driver
-        # Pandas columns will be exactly what was aliased if driver supports it, 
-        # typically firebird returns UPPER CASE aliases.
         df_result.columns = [c.upper() for c in df_result.columns]
-        
-        # Apply standard formattings if columns exist
         
         if 'CNES' in df_result.columns:
             df_result['CNES'] = df_result['CNES'].fillna('').astype(str).str.zfill(7)
@@ -71,13 +60,9 @@ def transform_and_load(dsn, user, password, output_db, mapping_json):
             df_result['CPFDIRETOR'] = df_result['CPFDIRETOR'].fillna('').astype(str).str.replace(r'\D', '', regex=True).str.zfill(11)
 
         if 'ATIVIDADEPRINCIPAL' in df_result.columns:
-             # User request: Ensure 2 digits, remove leading zero if needed.
-             # Logic: Convert to int to remove any zeros, then zfill(2).
-             # Example: "001" -> 1 -> "01". "05" -> 5 -> "05".
              def clean_activity(x):
                  if pd.isna(x) or x == '': return '00'
                  try:
-                     # Remove non-digits first just in case
                      clean = ''.join(filter(str.isdigit, str(x)))
                      return str(int(clean)).zfill(2)
                  except:
@@ -85,11 +70,8 @@ def transform_and_load(dsn, user, password, output_db, mapping_json):
                      
              df_result['ATIVIDADEPRINCIPAL'] = df_result['ATIVIDADEPRINCIPAL'].apply(clean_activity)
 
-        # Force SISTEMASSUS = 1 (User Request)
-        # All State establishments belong to SUS.
         df_result['SISTEMASSUS'] = 1
         
-        # Final Rename for XML Standard
         rename_map = {
             'CNES': 'CNES',
             'CNPJ': 'CNPJ',
@@ -104,8 +86,7 @@ def transform_and_load(dsn, user, password, output_db, mapping_json):
         }
         df_result = df_result.rename(columns=rename_map)
 
-        # --- Loading to SQLite ---
-        print(f"Salvando {len(df_result)} registros em {output_db}...")
+        logger.info(f"Salvando {len(df_result)} registros em {output_db}...")
         
         os.makedirs(os.path.dirname(output_db), exist_ok=True)
         
@@ -113,11 +94,11 @@ def transform_and_load(dsn, user, password, output_db, mapping_json):
         df_result.to_sql('layout_11_1', conn_sqlite, if_exists='replace', index=False)
         conn_sqlite.close()
         
-        print("ETL concluído com sucesso.")
+        logger.info("ETL concluído com sucesso.")
         return True
 
     except Exception as e:
-        print(f"Erro no ETL: {e}", file=sys.stderr)
+        logger.error(f"Erro no ETL: {e}")
         return False
 
 if __name__ == "__main__":

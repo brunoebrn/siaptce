@@ -8,16 +8,37 @@ O sistema requer:
 1. **Python 3.11 (32-bit)** instalado ou disponível de forma portável.
    - **Nota Importante**: A versão 32-bit é OBRIGATÓRIA devido às bibliotecas do Firebird (fdb) que dependem de DLLs legadas do sistema TCE.
 
-## Como Distribuir
-Para distribuir o software, compacte a pasta raiz do projeto (`c:\siaptce`), INCLUINDO os seguintes arquivos essenciais:
-- `src\` (Todo o código fonte)
-- `requirements.txt` (Lista de dependências)
-- `iniciar_sistema.bat` (Script de automação)
+## Como Distribuir (Arquitetura Híbrida)
+O sistema usa dois ambientes Python para funcionar: um moderno (64-bit) para a interface e um legado (32-bit) para o banco de dados.
 
-**Evite incluir**:
-- A pasta `.venv` (Ela será recriada na máquina do usuário)
-- A pasta `__pycache__` ou `.git`
-- Arquivos de banco de dados (`.gdb`, `.fdb`) de testes locais, a menos que sirvam de exemplo.
+1. **Baixe os Ambientes**:
+   - Acesse [python.org/downloads/windows](https://www.python.org/downloads/windows/)
+   - **Para a Interface**: Baixe "Windows embeddable package (64-bit)" da versão 3.11.x.
+   - **Para o Banco**: Baixe "Windows embeddable package (32-bit)" da versão 3.11.x.
+
+2. **Prepare as Pastas**:
+   - Extraia o **64-bit** para uma pasta chamada `python_embed`.
+   - Extraia o **32-bit** para uma pasta chamada `python_worker`.
+   - **Importante**: Em AMBAS as pastas, abra o arquivo `._pth` e descomente `import site`.
+
+3. **Preparar Dependências (Crucial)**:
+   - Baixe o `get-pip.py` e coloque uma cópia em cada pasta (`python_embed` e `python_worker`).
+   - **No ambiente 64-bit (Interface)**:
+     - Abra o terminal em `python_embed` e rode:
+       `python.exe -I get-pip.py`
+       `python.exe -I -m pip install -r ..\requirements.txt`
+   - **No ambiente 32-bit (Banco)**:
+     - Abra o terminal em `python_worker` e rode:
+       `python.exe -I get-pip.py`
+       `python.exe -I -m pip install -r ..\requirements-ingestion.txt`
+     *(Nota: Se der erro de certificado SSL, tente sem o -I, mas o ideal é usar para isolamento)*
+
+4. **Compactar**:
+   - Compacte a pasta raiz, incluindo `src`, `python_embed`, `python_worker`, `requirements*.txt` e o `.bat`.
+   
+   **Evite incluir**:
+   - `.venv` (Será criada automaticamente)
+   - `__pycache__` ou `.git`
 
 ## Como Instalar (Usuário Final)
 
@@ -33,5 +54,9 @@ Para distribuir o software, compacte a pasta raiz do projeto (`c:\siaptce`), INC
      - Abrir o navegador com o sistema rodando.
 
 ## Solução de Problemas Comuns
-- **Erro "Python não encontrado"**: Edite o arquivo `iniciar_sistema.bat` e, na linha `set "PYTHON_CMD=python"`, coloque o caminho completo para o executável do Python (ex: `set "PYTHON_CMD=C:\Python311-32\python.exe"`).
+## Solução de Problemas Comuns
+- **Erro "Python não encontrado"**:
+  - Se estiver usando o modo Portátil, verifique se a pasta se chama exatamente `python_embed` e contém o `python.exe`.
+  - Se estiver usando o Python do sistema, verifique se ele é a versão 3.11 (32-bit) e se o comando `python` responde no terminal.
+  - Você pode editar `iniciar_sistema.bat` para forçar um caminho específico se necessário.
 - **Erro de Conexão Firebird**: Certifique-se de que a máquina possui as DLLs cliente do Firebird instaladas ou que o Python 32-bit está sendo utilizado corretamente. O sistema foi configurado para usar o interpretador ativo para garantir compatibilidade.

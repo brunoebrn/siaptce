@@ -10,6 +10,11 @@ import src.ingestion.firebird_engine
 import src.ui.layouts.layout_11_1
 import src.ui.layouts.layout_11_2
 import src.ui.db_explorer
+from src.utils.logger import setup_logger
+
+# Initialize Logger
+logger = setup_logger("UI")
+
 import importlib
 importlib.reload(src.ingestion.firebird_engine)
 importlib.reload(src.ui.layouts.layout_11_1)
@@ -30,6 +35,7 @@ def main():
         layout="wide",
         initial_sidebar_state="expanded"
     )
+    logger.info("Application Started")
 
     # Initialize Session State
     if 'step' not in st.session_state:
@@ -135,6 +141,13 @@ def render_sidebar_navigation():
     if st.sidebar.button("📂 DB Explorer", use_container_width=True):
         st.session_state.step = 'db_explorer'
         st.rerun()
+
+    st.sidebar.divider()
+    if st.sidebar.button("❌ Encerrar Sistema", type="primary", use_container_width=True):
+        logger.info("Shutdown requested by user.")
+        st.warning("Encerrando sistema...")
+        time.sleep(1)
+        os._exit(0)
 
 
 def render_setup_screen():

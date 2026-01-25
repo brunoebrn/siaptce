@@ -48,7 +48,7 @@ def render_layout_11_1():
             "CPFDiretor": "CPFDIRETORCLINICO",
             "TipoEstabelecimentoSaude": "CO_TIPO_ESTABELECIMENTO",
             "AtividadePrincipal": "CO_ATIVIDADE_PRINCIPAL",
-            "SistemasSUS": "SISTEMAS_SUS" # Dummy or mapped
+            "SistemasSUS": "" # Dummy or mapped (Force 1 in ETL)
          }
     }
     

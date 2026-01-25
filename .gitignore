@@ -28,6 +28,10 @@ venv/
 env/
 .env/
 
+# Portable Environments (Ignored to keep repo light - download on setup)
+python_embed/
+python_worker/
+
 # IDEs
 .vscode/
 .idea/
@@ -43,6 +47,8 @@ output/xml/*.xml
 *.fdb
 *.lo
 *.log
+logs/
+startup_log.txt
 
 # Windows internal
 Thumbs.db
