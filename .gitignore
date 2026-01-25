@@ -28,10 +28,6 @@ venv/
 env/
 .env/
 
-# Portable Environments (Ignored to keep repo light - download on setup)
-python_embed/
-python_worker/
-
 # IDEs
 .vscode/
 .idea/
