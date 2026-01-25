@@ -33,6 +33,8 @@ def render_readonly_mapping(mapping: dict):
     df = pd.DataFrame(data)
     st.table(df)
 
+import io
+
 def render_data_preview(db_path: str, table_name: str):
     """
     Renders a preview of the data in the SQLite DB.
@@ -50,6 +52,19 @@ def render_data_preview(db_path: str, table_name: str):
         
         st.dataframe(df, use_container_width=True)
         st.caption(f"Total de Registros: {len(df)}")
+
+        # Excel Export
+        buffer = io.BytesIO()
+        with pd.ExcelWriter(buffer, engine='xlsxwriter') as writer:
+            df.to_excel(writer, index=False, sheet_name='Dados')
+        
+        st.download_button(
+            label="📥 Baixar em Excel (.xlsx)",
+            data=buffer.getvalue(),
+            file_name=f"{table_name}_export.xlsx",
+            mime="application/vnd.ms-excel"
+        )
+
         return df
     except Exception as e:
         st.error(f"Erro ao ler banco de dados gerado: {e}")

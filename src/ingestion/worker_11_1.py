@@ -35,7 +35,11 @@ def transform_and_load(dsn, user, password, output_db, mapping_json):
                 select_parts.append(f"NULL as {target}")
                 
         query_cols = ", ".join(select_parts)
-        query_main = f"SELECT {query_cols} FROM {main_table}"
+        if main_table.upper() == 'LFCES004':
+            logger.info("Aplicando filtro: Apenas estabelecimentos ativos (CD_MOTIVO_DESAB IS NULL OR '')")
+            query_main = f"SELECT {query_cols} FROM {main_table} WHERE (CD_MOTIVO_DESAB IS NULL OR CD_MOTIVO_DESAB = '')"
+        else:
+            query_main = f"SELECT {query_cols} FROM {main_table}"
         
         data_main, cols_main = conn_fb.execute_query(query_main)
         df_result = pd.DataFrame(data_main, columns=cols_main)

@@ -46,7 +46,7 @@ def render_layout_11_1():
             "Endereco": "LOGRADOURO",
             "CEP": "COD_CEP",
             "CPFDiretor": "CPFDIRETORCLINICO",
-            "TipoEstabelecimentoSaude": "CO_TIPO_ESTABELECIMENTO",
+            "TipoEstabelecimentoSaude": "TP_UNID_ID",
             "AtividadePrincipal": "CO_ATIVIDADE_PRINCIPAL",
             "SistemasSUS": "" # Dummy or mapped (Force 1 in ETL)
          }

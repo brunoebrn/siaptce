@@ -35,6 +35,7 @@ env/
 # Project Specific
 # Data ingestion results (Temporary)
 data/sqlite/*.json
+data/sqlite/*.db
 # Generated outputs (Temporary)
 output/xml/*.xml
 
