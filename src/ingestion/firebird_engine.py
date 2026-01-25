@@ -212,23 +212,15 @@ class HealthDataIngestor:
             return False, "Caminho do CNES inválido."
             
         worker_script = os.path.join(os.path.dirname(__file__), 'worker_11_2.py')
-        output_db = os.path.join(os.path.dirname(path), 'siap_data.db')
+        output_db = os.path.abspath(os.path.join(os.path.dirname(__file__), '../../data/sqlite/layout_11_2.db'))
         
         os.makedirs(os.path.dirname(output_db), exist_ok=True)
         
         # Serialize mapping mapping dict to JSON for CLI arg
         mapping_json = json.dumps(mapping)
         
-        # Call the worker script using the same Python interpreter (presumably 32-bit)
-        # or relying on system 'py -3.11-32' if configured.
-        # Ideally, we use sys.executable if we are already in the 32-bit env, 
-        # but since the Orchestrator might be 64-bit, we force the 32-bit launcher usually.
-        # But here we assume the same environment pattern as check_connection for consistency.
-        
-        python_exe = "py -3.11-32" # Transformation requires fdb (32bit)
-        
         cmd = [
-            sys.executable, worker_script,
+            HealthDataIngestor._get_worker_executable(), worker_script,
             '--dsn', path.strip().strip('"'),
             '--user', user,
             '--password', password,
@@ -237,10 +229,13 @@ class HealthDataIngestor:
         ]
         
         try:
+            logger.info(f"Generating Layout 11.2 for {path}")
             result = subprocess.run(cmd, capture_output=True, text=True, check=True)
-            print(result.stdout)
+            if result.stderr:
+                 logger.warning(f"Worker 11.2 stderr: {result.stderr}")
             return True, output_db
         except subprocess.CalledProcessError as e:
+            logger.error(f"Worker 11.2 Failed: {e.stderr}")
             return False, f"Erro no Worker 11.2: {e.stderr}"
         except Exception as e:
             return False, f"Erro: {str(e)}"
@@ -251,11 +246,12 @@ class HealthDataIngestor:
         Runs the ETL process for Layout 11.3 (EstabelecimentoLeito from LFCES002/004) in a separate 32-bit process.
         """
         worker_script = os.path.join(os.path.dirname(__file__), 'worker_11_3.py')
-        output_db = os.path.join(os.path.dirname(path), 'siap_data.db')
+        output_db = os.path.abspath(os.path.join(os.path.dirname(__file__), '../../data/sqlite/layout_11_3.db'))
+        os.makedirs(os.path.dirname(output_db), exist_ok=True)
         mapping_json = json.dumps(mapping)
         
         cmd = [
-            sys.executable, worker_script,
+            HealthDataIngestor._get_worker_executable(), worker_script,
             '--dsn', path.strip().strip('"'),
             '--user', user,
             '--password', password,
@@ -264,10 +260,13 @@ class HealthDataIngestor:
         ]
         
         try:
+            logger.info(f"Generating Layout 11.3 for {path}")
             result = subprocess.run(cmd, capture_output=True, text=True, check=True)
-            print(result.stdout)
+            if result.stderr:
+                 logger.warning(f"Worker 11.3 stderr: {result.stderr}")
             return True, output_db
         except subprocess.CalledProcessError as e:
+            logger.error(f"Worker 11.3 Failed: {e.stderr}")
             return False, f"Erro no Worker 11.3: {e.stderr}"
         except Exception as e:
             return False, f"Erro: {str(e)}"
@@ -277,11 +276,12 @@ class HealthDataIngestor:
         Runs the ETL process for Layout 11.4 (Equipamentos from LFCES020/004) in a separate 32-bit process.
         """
         worker_script = os.path.join(os.path.dirname(__file__), 'worker_11_4.py')
-        output_db = os.path.join(os.path.dirname(path), 'siap_data.db')
+        output_db = os.path.abspath(os.path.join(os.path.dirname(__file__), '../../data/sqlite/layout_11_4.db'))
+        os.makedirs(os.path.dirname(output_db), exist_ok=True)
         mapping_json = json.dumps(mapping)
         
         cmd = [
-            sys.executable, worker_script,
+            HealthDataIngestor._get_worker_executable(), worker_script,
             '--dsn', path.strip().strip('"'),
             '--user', user,
             '--password', password,
@@ -290,10 +290,13 @@ class HealthDataIngestor:
         ]
         
         try:
+            logger.info(f"Generating Layout 11.4 for {path}")
             result = subprocess.run(cmd, capture_output=True, text=True, check=True)
-            print(result.stdout)
+            if result.stderr:
+                 logger.warning(f"Worker 11.4 stderr: {result.stderr}")
             return True, output_db
         except subprocess.CalledProcessError as e:
+            logger.error(f"Worker 11.4 Failed: {e.stderr}")
             return False, f"Erro no Worker 11.4: {e.stderr}"
         except Exception as e:
             return False, f"Erro: {str(e)}"
@@ -304,13 +307,14 @@ class HealthDataIngestor:
         Filters by Competence (AAAAMM)
         """
         worker_script = os.path.join(os.path.dirname(__file__), 'worker_11_5.py')
-        output_db = os.path.join(os.path.dirname(path), 'siap_data.db')
+        output_db = os.path.abspath(os.path.join(os.path.dirname(__file__), '../../data/sqlite/layout_11_5.db'))
+        os.makedirs(os.path.dirname(output_db), exist_ok=True)
         mapping_json = json.dumps(mapping)
         
         competencia = f"{year}{month}"
         
         cmd = [
-            sys.executable, worker_script,
+            HealthDataIngestor._get_worker_executable(), worker_script,
             '--dsn', path.strip().strip('"'),
             '--user', user,
             '--password', password,
@@ -320,10 +324,13 @@ class HealthDataIngestor:
         ]
         
         try:
+            logger.info(f"Generating Layout 11.5 for {path}")
             result = subprocess.run(cmd, capture_output=True, text=True, check=True)
-            print(result.stdout)
+            if result.stderr:
+                 logger.warning(f"Worker 11.5 stderr: {result.stderr}")
             return True, output_db
         except subprocess.CalledProcessError as e:
+            logger.error(f"Worker 11.5 Failed: {e.stderr}")
             return False, f"Erro no Worker 11.5: {e.stderr}"
         except Exception as e:
             return False, f"Erro: {str(e)}"
@@ -335,13 +342,14 @@ class HealthDataIngestor:
         Filters by Competence (AAAAMM)
         """
         worker_script = os.path.join(os.path.dirname(__file__), 'worker_11_8.py')
-        output_db = os.path.join(os.path.dirname(path), 'siap_data.db')
+        output_db = os.path.abspath(os.path.join(os.path.dirname(__file__), '../../data/sqlite/layout_11_8.db'))
+        os.makedirs(os.path.dirname(output_db), exist_ok=True)
         mapping_json = json.dumps(mapping)
         
         competencia = f"{year}{month}"
         
         cmd = [
-            sys.executable, worker_script,
+            HealthDataIngestor._get_worker_executable(), worker_script,
             '--dsn', path.strip().strip('"'),
             '--user', user,
             '--password', password,
@@ -351,10 +359,13 @@ class HealthDataIngestor:
         ]
         
         try:
+            logger.info(f"Generating Layout 11.8 for {path}")
             result = subprocess.run(cmd, capture_output=True, text=True, check=True)
-            print(result.stdout)
+            if result.stderr:
+                 logger.warning(f"Worker 11.8 stderr: {result.stderr}")
             return True, output_db
         except subprocess.CalledProcessError as e:
+            logger.error(f"Worker 11.8 Failed: {e.stderr}")
             return False, f"Erro no Worker 11.8: {e.stderr}"
         except Exception as e:
             return False, f"Erro: {str(e)}"

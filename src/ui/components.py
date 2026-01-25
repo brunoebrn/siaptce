@@ -58,10 +58,21 @@ def render_data_preview(db_path: str, table_name: str):
         with pd.ExcelWriter(buffer, engine='xlsxwriter') as writer:
             df.to_excel(writer, index=False, sheet_name='Dados')
         
+        # Map specific table names to friendly filenames
+        filename_map = {
+            'layout_11_1': 'EstabelecimentoSaude',
+            'layout_11_2': 'VinculoProfissionalSaude',
+            'layout_11_3': 'EstabelecimentoLeito',
+            'layout_11_4': 'EstabelecimentoEquipamento',
+            'layout_11_5': 'FichaProgramacaoOrcamentaria',
+            'layout_11_8': 'AutorizacaoInternacaoHospitalar'
+        }
+        base_name = filename_map.get(table_name, table_name)
+        
         st.download_button(
             label="📥 Baixar em Excel (.xlsx)",
             data=buffer.getvalue(),
-            file_name=f"{table_name}_export.xlsx",
+            file_name=f"{base_name}.xlsx",
             mime="application/vnd.ms-excel"
         )
 

@@ -43,7 +43,7 @@ def render_layout_11_2():
             "CNS": "COD_CNS",      
             "CPF": "CPF_PROF",     
             "CNES": "CNES",        
-            "Matricula": "NU_MATRICULA",
+            "Matricula": "",
             "Vinculo": "IND_VINC",  
             "Ocupacao": "COD_CBO",  
             "CargaHorariaAmbulatorio": "CG_HORAAMB", 

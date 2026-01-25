@@ -3,11 +3,17 @@ import os
 import sqlite3
 import pandas as pd
 import json
-import fdb
 
 # Add root to path
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '../../')))
+
 from src.ingestion.connector import FirebirdConnector
+from src.utils.logger import setup_logger
+
+# Disable file logging for workers
+logger = setup_logger("Worker_11_2", log_to_file=False)
+
+import fdb
 
 def transform_and_load(dsn, user, password, output_db, mapping_json):
     try:
@@ -23,25 +29,20 @@ def transform_and_load(dsn, user, password, output_db, mapping_json):
         conn_fb = FirebirdConnector(dsn, user, password)
         conn_fb.connect()
         
-        print(f"Executando Query Complexa (Joins) em {main_table}...")
-        
-        # Identify columns for CH calculation (Need to fetch them even if not mapped strictly to output yet, or usually they are mapped to temp vars)
-        # In this specific worker, we will fetch the columns strictly needed.
-        # But we need raw values for CH AMB, HOSPITAL, OUTROS to sum them.
-        # The user maps 'CargaHorariaAmbulatorio', 'CargaHorariaHospital', 'CargaHorariaOutros' (new input).
-        
-        # We need to construct a robust SELECT list. 
-        # Since we are joining, we should ideally qualify columns, but we don't know the schema ownership easily here.
-        # Strategy: Ask Firebird for the columns blindly. If ambiguous, it might fail, but usually these tables have distinct prefixes or we hope so.
-        # Actually, simpler: Select the columns defined in mapping.
+        logger.info(f"Executando Query Complexa (Joins) em {main_table}...")
         
         select_parts = []
         for target, source in cols_map.items():
             if source:
                 select_parts.append(f"{source} as {target}")
+            else:
+                 select_parts.append(f"NULL as {target}")
                 
         # Only add valid SQL parts
         query_cols = ", ".join(select_parts)
+        
+        if not query_cols:
+             query_cols = "*" # Fallback
         
         # The Query
         # Using aliases for clarity, but if the user provided raw column names, we must ensure they match.
@@ -54,7 +55,7 @@ def transform_and_load(dsn, user, password, output_db, mapping_json):
         LEFT JOIN LFCES004 T04 ON T21.UNIDADE_ID = T04.UNIDADE_ID
         """
         
-        print(f"SQL Gerado: {sql}")
+        logger.info(f"SQL Gerado: {sql}")
         
         data_main, cols_main = conn_fb.execute_query(sql)
         df_result = pd.DataFrame(data_main, columns=cols_main)
@@ -62,7 +63,7 @@ def transform_and_load(dsn, user, password, output_db, mapping_json):
         conn_fb.close()
         
         # --- Transformations 11.2 ---
-        print("Transformando dados (Layout 11.2)...")
+        logger.info("Transformando dados (Layout 11.2)...")
         # Standardize keys to upper
         df_result.columns = [c.upper() for c in df_result.columns]
 
@@ -95,7 +96,7 @@ def transform_and_load(dsn, user, password, output_db, mapping_json):
             if col not in df_result.columns:
                 df_result[col] = 0
             else:
-                df_result[col] = pd.to_numeric(df_result[col], errors='coerce').fillna(0)
+                df_result[col] = pd.to_numeric(df_result[col], errors='coerce').fillna(0).astype(int)
                 
         df_result['CARGAHORARIATOTAL'] = (
             df_result['CARGAHORARIAAMBULATORIO'] + 
@@ -103,10 +104,12 @@ def transform_and_load(dsn, user, password, output_db, mapping_json):
             df_result['CARGAHORARIAOUTROS']
         ).astype(int)
         
-        # Format final CH columns to 2 digits
+        # Format final CH columns to 2 digits (as strings) - wait, XML usually expects strict format. 
+        # User said 2 digits.
         for ch in ['CARGAHORARIAAMBULATORIO', 'CARGAHORARIAHOSPITAL', 'CARGAHORARIATOTAL']:
             if ch in df_result.columns:
-                df_result[ch] = df_result[ch].astype(int).astype(str).str.zfill(2)
+                 # Ensure we don't have negative numbers for some reason, zfill doesn't like them
+                 df_result[ch] = df_result[ch].astype(str).str.zfill(2)
 
         # Final Rename for XML Standard
         rename_map = {
@@ -123,7 +126,7 @@ def transform_and_load(dsn, user, password, output_db, mapping_json):
         df_result = df_result.rename(columns=rename_map)
 
         # --- Loading to SQLite ---
-        print(f"Salvando {len(df_result)} registros em {output_db}...")
+        logger.info(f"Salvando {len(df_result)} registros em {output_db}...")
         
         os.makedirs(os.path.dirname(output_db), exist_ok=True)
         
@@ -131,11 +134,11 @@ def transform_and_load(dsn, user, password, output_db, mapping_json):
         df_result.to_sql('layout_11_2', conn_sqlite, if_exists='replace', index=False)
         conn_sqlite.close()
         
-        print("ETL (11.2) concluído com sucesso.")
+        logger.info("ETL (11.2) concluído com sucesso.")
         return True
 
     except Exception as e:
-        print(f"Erro no ETL: {e}", file=sys.stderr)
+        logger.error(f"Erro no ETL: {e}")
         return False
 
 if __name__ == "__main__":
