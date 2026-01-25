@@ -129,6 +129,53 @@ def render_xml_button(df: pd.DataFrame, layout_type: str):
         except Exception as e:
             st.error(f"Erro ao gerar XML: {e}")
 
+# Strict Column Case Enforcement for XML
+# Maps UPPERCASE (or internal) column names to Manual MixedCase
+XML_COL_MAPS = {
+    '11.1': {
+        'CNES': 'CNES', 'CNPJ': 'CNPJ', 'NOMEFANTASIA': 'NomeFantasia',
+        'RAZAOSOCIAL': 'RazaoSocial', 'ENDERECO': 'Endereco', 'CEP': 'CEP',
+        'CPFDIRETOR': 'CPFDiretor', 'TIPOESTABELECIMENTOSAUDE': 'TipoEstabelecimentoSaude',
+        'ATIVIDADEPRINCIPAL': 'AtividadePrincipal', 'SISTEMASSUS': 'SistemaSUS',
+        'SISTEMASUS': 'SistemaSUS' 
+    },
+    '11.2': {
+        'CNS': 'CNS', 'CPF': 'CPF', 'CNES': 'CNES', 'MATRICULA': 'Matricula',
+        'VINCULO': 'Vinculo', 'OCUPACAO': 'Ocupacao', 
+        'CARGAHORARIAAMBULATORIO': 'CargaHorariaAmbulatorio',
+        'CARGAHORARIAHOSPITAL': 'CargaHorariaHospital',
+        'CARGAHORARIATOTAL': 'CargaHorariaTotal'
+    },
+    '11.3': {
+        'CNES': 'CNES', 'CODIGOLEITO': 'CodigoLeito', 'TIPOLEITO': 'TipoLeito',
+        'QUANTIDADE': 'Quantidade', 'QUANTIDADESUS': 'QuantidadeSUS'
+    },
+    '11.4': {
+        'CNES': 'CNES', 'CODIGO': 'CodigoEquipamento', 'CODIGOEQUIPAMENTO': 'CodigoEquipamento',
+        'TIPO': 'TipoEquipamentoSaude', 'TIPOEQUIPAMENTOSAUDE': 'TipoEquipamentoSaude',
+        'QUANTIDADE': 'Quantidade', 'QUANTIDADEUSO': 'QuantidadeUso',
+        'DISPONIBILIDADE': 'DisponibilidadeSUS', 'DISPONIBILIDADESUS': 'DisponibilidadeSUS'
+    },
+    '11.5': {
+        'CNES': 'CNES', 'PROCEDIMENTO': 'Procedimento',
+        'FINANCIAMENTO': 'Financiamento', 'QUANTIDADE': 'Quantidade',
+        'VALORUNITARIO': 'ValorUnitario', 'VALORTOTAL': 'ValorTotal'
+    },
+    '11.8': {
+        'CNES': 'CNES', 'NUMEROAIH': 'NumeroAIH', 'IDENTIFICACAO': 'Identificacao',
+        'ESPECIALIDADELEITO': 'EspecialidadeLeito', 'MODALIDADEINTERNACAO': 'ModalidadeInternacao',
+        'AIHANTERIOR': 'AIHAnterior', 'DATAEMISSAO': 'DataEmissao',
+        'DATAINTERNACAO': 'DataInternacao', 'DATASAIDA': 'DataSaida',
+        'PROCEDIMENTOSOLICITADO': 'ProcedimentoSolicitado',
+        'CARATERINTERNACAO': 'CaraterInternacao', 'MOTIVOSAIDA': 'MotivoSaida',
+        'CNSSOLICITANTE': 'CNSSolicitante', 'CNSRESPONSAVEL': 'CNSResponsavel',
+        'CNSAUTORIZADOR': 'CNSAutorizador', 'DIAGNOSTICOPRINCIPAL': 'DiagnosticoPrincipal',
+        'CNSPACIENTE': 'CNSPaciente'
+    }
+}
+
+import re
+
 def generate_xml_string(df, layout_type, codigo, exercicio, mes):
     root = ET.Element("SIAP")
     ET.SubElement(root, "Codigo").text = codigo
@@ -149,52 +196,7 @@ def generate_xml_string(df, layout_type, codigo, exercicio, mes):
     
     row_tag = row_tag_map.get(layout_type, "Registro")
     
-    # Strict Column Case Enforcement for XML
-    # Maps UPPERCASE (or internal) column names to Manual MixedCase
-    xml_col_maps = {
-        '11.1': {
-            'CNES': 'CNES', 'CNPJ': 'CNPJ', 'NOMEFANTASIA': 'NomeFantasia',
-            'RAZAOSOCIAL': 'RazaoSocial', 'ENDERECO': 'Endereco', 'CEP': 'CEP',
-            'CPFDIRETOR': 'CPFDiretor', 'TIPO': 'Tipo', 'TIPOESTABELECIMENTOSAUDE': 'TipoEstabelecimentoSaude',
-            'ATIVIDADEPRINCIPAL': 'AtividadePrincipal', 'SISTEMASSUS': 'SistemasSUS',
-            'SISTEMASUS': 'SistemasSUS' 
-        },
-        '11.2': {
-            'CNS': 'CNS', 'CPF': 'CPF', 'CNES': 'CNES', 'MATRICULA': 'Matricula',
-            'VINCULO': 'Vinculo', 'OCUPACAO': 'Ocupacao', 
-            'CARGAHORARIAAMBULATORIO': 'CargaHorariaAmbulatorio',
-            'CARGAHORARIAHOSPITAL': 'CargaHorariaHospital',
-            'CARGAHORARIATOTAL': 'CargaHorariaTotal'
-        },
-        '11.3': {
-            'CNES': 'CNES', 'CODIGOLEITO': 'CodigoLeito', 'TIPOLEITO': 'TipoLeito',
-            'QUANTIDADE': 'Quantidade', 'QUANTIDADESUS': 'QuantidadeSUS'
-        },
-        '11.4': {
-            'CNES': 'CNES', 'CODIGO': 'CodigoEquipamento', 'CODIGOEQUIPAMENTO': 'CodigoEquipamento',
-            'TIPO': 'TipoEquipamentoSaude', 'TIPOEQUIPAMENTOSAUDE': 'TipoEquipamentoSaude',
-            'QUANTIDADE': 'Quantidade', 'QUANTIDADEUSO': 'QuantidadeUso',
-            'DISPONIBILIDADE': 'DisponibilidadeSUS', 'DISPONIBILIDADESUS': 'DisponibilidadeSUS'
-        },
-        '11.5': {
-            'CNES': 'CNES', 'PROCEDIMENTO': 'Procedimento',
-            'FINANCIAMENTO': 'Financiamento', 'QUANTIDADE': 'Quantidade',
-            'VALORUNITARIO': 'ValorUnitario', 'VALORTOTAL': 'ValorTotal'
-        },
-        '11.8': {
-            'CNES': 'CNES', 'NUMEROAIH': 'NumeroAIH', 'IDENTIFICACAO': 'Identificacao',
-            'ESPECIALIDADELEITO': 'EspecialidadeLeito', 'MODALIDADEINTERNACAO': 'ModalidadeInternacao',
-            'AIHANTERIOR': 'AIHAnterior', 'DATAEMISSAO': 'DataEmissao',
-            'DATAINTERNACAO': 'DataInternacao', 'DATASAIDA': 'DataSaida',
-            'PROCEDIMENTOSOLICITADO': 'ProcedimentoSolicitado',
-            'CARATERINTERNACAO': 'CaraterInternacao', 'MOTIVOSAIDA': 'MotivoSaida',
-            'CNSSOLICITANTE': 'CNSSolicitante', 'CNSRESPONSAVEL': 'CNSResponsavel',
-            'CNSAUTORIZADOR': 'CNSAutorizador', 'DIAGNOSTICOPRINCIPAL': 'DiagnosticoPrincipal',
-            'CNSPACIENTE': 'CNSPaciente'
-        }
-    }
-    
-    target_map = xml_col_maps.get(layout_type, {})
+    target_map = XML_COL_MAPS.get(layout_type, {})
     
     # Create a new df with renamed columns for XML generation only
     # We upper() the current columns to match keys easily
@@ -223,4 +225,10 @@ def generate_xml_string(df, layout_type, codigo, exercicio, mes):
 
             ET.SubElement(reg, col).text = text_val
             
-    return minidom.parseString(ET.tostring(root)).toprettyxml(indent="  ")
+    xml_str = minidom.parseString(ET.tostring(root)).toprettyxml(indent="  ")
+    
+    # Fix: Expand self-closing tags (e.g. <Matricula/>) to explicit pairs (<Matricula></Matricula>)
+    # Some legacy validators require this.
+    xml_str = re.sub(r'<([a-zA-Z0-9_]+)\s*/>', r'<\1></\1>', xml_str)
+    
+    return xml_str

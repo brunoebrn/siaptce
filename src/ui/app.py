@@ -28,6 +28,7 @@ import src.ui.layouts.layout_11_4 as layout_11_4
 import src.ui.layouts.layout_11_5 as layout_11_5
 import src.ui.layouts.layout_11_8 as layout_11_8
 import src.ui.db_explorer as db_explorer
+import src.ui.xlsx_converter as xlsx_converter
 
 def main():
     st.set_page_config(
@@ -74,6 +75,8 @@ def main():
         render_dashboard_screen()
     elif st.session_state.step == 'db_explorer':
         db_explorer.render_db_explorer()
+    elif st.session_state.step == 'xlsx_converter':
+        xlsx_converter.render_xlsx_converter()
     elif st.session_state.step == 'layout_11_1':
         layout_11_1.render_layout_11_1()
     elif st.session_state.step == 'layout_11_2':
@@ -140,6 +143,10 @@ def render_sidebar_navigation():
         
     if st.sidebar.button("📂 DB Explorer", use_container_width=True):
         st.session_state.step = 'db_explorer'
+        st.rerun()
+        
+    if st.sidebar.button("🔄 Conversor XLSX", use_container_width=True):
+        st.session_state.step = 'xlsx_converter'
         st.rerun()
 
     st.sidebar.divider()
@@ -235,11 +242,17 @@ def render_dashboard_screen():
     st.title("Painel de Controle")
     st.markdown("Acesso aos Layouts do SIAP.")
     
-    # Explorer Button
-    if st.button("🔍 Explorador de Banco de Dados", type="secondary"):
-        st.session_state.step = 'db_explorer'
-        st.rerun()
-        
+    # Explorer Button and XLSX Converter
+    c_exp, c_conv = st.columns(2)
+    with c_exp:
+        if st.button("🔍 Explorador de Banco de Dados", type="secondary", use_container_width=True):
+            st.session_state.step = 'db_explorer'
+            st.rerun()
+    with c_conv:
+        if st.button("🔄 Conversor XLSX para XML", type="secondary", use_container_width=True):
+            st.session_state.step = 'xlsx_converter'
+            st.rerun()
+
     st.divider()
 
     # Layouts Cards

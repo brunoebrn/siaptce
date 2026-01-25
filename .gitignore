@@ -50,3 +50,6 @@ startup_log.txt
 # Windows internal
 Thumbs.db
 Desktop.ini
+
+#Git ignore
+.gitignore

@@ -86,7 +86,7 @@ def transform_and_load(dsn, user, password, output_db, mapping_json):
             'CPFDIRETOR': 'CPFDiretor',
             'TIPOESTABELECIMENTOSAUDE': 'TipoEstabelecimentoSaude',
             'ATIVIDADEPRINCIPAL': 'AtividadePrincipal',
-            'SISTEMASSUS': 'SistemasSUS'
+            'SISTEMASSUS': 'SistemaSUS'
         }
         df_result = df_result.rename(columns=rename_map)
 
