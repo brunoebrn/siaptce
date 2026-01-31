@@ -19,10 +19,11 @@ A solução é **100% Portátil e Híbrida**:
 ## 📦 Como Usar (Tutorial)
 
 ### 1. Instalação
-Não há instalação! O sistema é "Portable".
-1. **Baixe** o repositório completo (Arquivo ZIP).
+O sistema é "Portable" e agora **Auto-Configurável**.
+1. **Baixe** o arquivo ZIP (Versão Compacta ou Full).
 2. **Extraia** para uma pasta (Ex: `C:\SIAP`).
-   - *Nota: Evite caminhos muito longos ou com espaços.*
+   - *Nota: Se você baixou a versão Compacta, precisará de Internet na primeira execução para baixar as dependências automaticamente.*
+
 
 ### 2. Execução
 1. Abra a pasta do projeto.
