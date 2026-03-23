@@ -78,7 +78,7 @@ def render_layout_11_4():
     col_action, col_status = st.columns([1, 2])
     
     with col_action:
-        if st.button("🔄 Validar e Converter", type="primary", use_container_width=True, key='btn_11_4_run'):
+        if st.button("🔄 Validar e Converter", type="primary", width='stretch', key='btn_11_4_run'):
              with st.spinner("Realizando ETL 11.4 (Integração)..."):
                  success, result = HealthDataIngestor.generate_layout_11_4(cnes_path, st.session_state['mapping_11_4'])
                  if success:

@@ -71,7 +71,7 @@ def render_xlsx_converter():
     st.divider()
 
     # Validar Button
-    if st.button("Validar Arquivos", type="primary", use_container_width=True):
+    if st.button("Validar Arquivos", type="primary", width='stretch'):
         validate_files(supported_layouts)
         st.rerun()
 

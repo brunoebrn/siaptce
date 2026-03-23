@@ -101,14 +101,14 @@ def render_sidebar_navigation():
     
     # "Voltar para Configuração" - Only on Dashboard
     if st.session_state.step == 'dashboard':
-        if st.sidebar.button("⬅️ Voltar para Configuração", use_container_width=True):
+        if st.sidebar.button("⬅️ Voltar para Configuração", width='stretch'):
             st.session_state.step = 'setup'
             st.rerun()
         st.sidebar.divider()
 
     # "Voltar ao Painel" - On all pages EXCEPT Dashboard and Setup
     if st.session_state.step != 'dashboard' and st.session_state.step != 'setup':
-        if st.sidebar.button("🏠 Voltar ao Painel", use_container_width=True):
+        if st.sidebar.button("🏠 Voltar ao Painel", width='stretch'):
              st.session_state.step = 'dashboard'
              st.rerun()
         st.sidebar.divider()
@@ -117,40 +117,40 @@ def render_sidebar_navigation():
     st.sidebar.markdown("**Acesso Rápido**")
     
     # Use distinct keys to avoid conflict if multiple buttons exist
-    if st.sidebar.button("🏥 11.1 - Estabelecimentos", use_container_width=True):
+    if st.sidebar.button("🏥 11.1 - Estabelecimentos", width='stretch'):
         st.session_state.step = 'layout_11_1'
         st.rerun()
         
-    if st.sidebar.button("👨‍⚕️ 11.2 - Vínculos", use_container_width=True):
+    if st.sidebar.button("👨‍⚕️ 11.2 - Vínculos", width='stretch'):
         st.session_state.step = 'layout_11_2'
         st.rerun()
 
-    if st.sidebar.button("🛏️ 11.3 - Leitos", use_container_width=True):
+    if st.sidebar.button("🛏️ 11.3 - Leitos", width='stretch'):
         st.session_state.step = 'layout_11_3'
         st.rerun()
 
-    if st.sidebar.button("🔬 11.4 - Equipamentos", use_container_width=True):
+    if st.sidebar.button("🔬 11.4 - Equipamentos", width='stretch'):
         st.session_state.step = 'layout_11_4'
         st.rerun()
         
-    if st.sidebar.button("💰 11.5 - Orçamento", use_container_width=True):
+    if st.sidebar.button("💰 11.5 - Orçamento", width='stretch'):
         st.session_state.step = 'layout_11_5'
         st.rerun()
 
-    if st.sidebar.button("🚑 11.8 - Internação", use_container_width=True):
+    if st.sidebar.button("🚑 11.8 - Internação", width='stretch'):
         st.session_state.step = 'layout_11_8'
         st.rerun()
         
-    if st.sidebar.button("📂 DB Explorer", use_container_width=True):
+    if st.sidebar.button("📂 DB Explorer", width='stretch'):
         st.session_state.step = 'db_explorer'
         st.rerun()
         
-    if st.sidebar.button("🔄 Conversor XLSX", use_container_width=True):
+    if st.sidebar.button("🔄 Conversor XLSX", width='stretch'):
         st.session_state.step = 'xlsx_converter'
         st.rerun()
 
     st.sidebar.divider()
-    if st.sidebar.button("❌ Encerrar Sistema", type="primary", use_container_width=True):
+    if st.sidebar.button("❌ Encerrar Sistema", type="primary", width='stretch'):
         logger.info("Shutdown requested by user.")
         st.warning("Encerrando sistema...")
         time.sleep(1)
@@ -196,7 +196,7 @@ def render_setup_screen():
     c_btn1, c_btn2 = st.columns([1, 4])
     
     with c_btn1:
-        if st.button("Validar Bases de Dados", type="primary", use_container_width=True):
+        if st.button("Validar Bases de Dados", type="primary", width='stretch'):
             with st.spinner("Testando conexões..."):
                 all_valid = True
                 for db in ['CNES', 'FPO', 'SIH', 'SIA']:
@@ -245,11 +245,11 @@ def render_dashboard_screen():
     # Explorer Button and XLSX Converter
     c_exp, c_conv = st.columns(2)
     with c_exp:
-        if st.button("🔍 Explorador de Banco de Dados", type="secondary", use_container_width=True):
+        if st.button("🔍 Explorador de Banco de Dados", type="secondary", width='stretch'):
             st.session_state.step = 'db_explorer'
             st.rerun()
     with c_conv:
-        if st.button("🔄 Conversor XLSX para XML", type="secondary", use_container_width=True):
+        if st.button("🔄 Conversor XLSX para XML", type="secondary", width='stretch'):
             st.session_state.step = 'xlsx_converter'
             st.rerun()
 
@@ -263,25 +263,25 @@ def render_dashboard_screen():
     with c1:
         st.info("Layout 11.1")
         st.caption("Estabelecimentos")
-        if st.button("Acessar 11.1", key="btn_dash_11_1", use_container_width=True):
+        if st.button("Acessar 11.1", key="btn_dash_11_1", width='stretch'):
             st.session_state.step = 'layout_11_1'
             st.rerun()
     with c2:
         st.info("Layout 11.2")
         st.caption("Vínculo Profissional")
-        if st.button("Acessar 11.2", key="btn_dash_11_2", use_container_width=True):
+        if st.button("Acessar 11.2", key="btn_dash_11_2", width='stretch'):
              st.session_state.step = 'layout_11_2'
              st.rerun()
     with c3:
         st.info("Layout 11.3")
         st.caption("Leitos")
-        if st.button("Acessar 11.3", key="btn_dash_11_3", use_container_width=True):
+        if st.button("Acessar 11.3", key="btn_dash_11_3", width='stretch'):
             st.session_state.step = 'layout_11_3'
             st.rerun()
     with c4:
         st.info("Layout 11.4")
         st.caption("Equipamentos")
-        if st.button("Acessar 11.4", key="btn_dash_11_4", use_container_width=True):
+        if st.button("Acessar 11.4", key="btn_dash_11_4", width='stretch'):
             st.session_state.step = 'layout_11_4'
             st.rerun()
 
@@ -294,7 +294,7 @@ def render_dashboard_screen():
         st.subheader("Grupo FPO")
         st.warning("Layout 11.5")
         st.caption("Ficha de Programação Orçamentária")
-        if st.button("Acessar 11.5", key="btn_dash_11_5", use_container_width=True):
+        if st.button("Acessar 11.5", key="btn_dash_11_5", width='stretch'):
              st.session_state.step = 'layout_11_5'
              st.rerun()
         
@@ -302,7 +302,7 @@ def render_dashboard_screen():
         st.subheader("Grupo SIH")
         st.error("Layout 11.8")
         st.caption("Sistema de Informação Hospitalar")
-        if st.button("Acessar 11.8", key="btn_dash_11_8", use_container_width=True):
+        if st.button("Acessar 11.8", key="btn_dash_11_8", width='stretch'):
              st.session_state.step = 'layout_11_8'
              st.rerun()
 
@@ -314,11 +314,11 @@ def render_dashboard_screen():
     with c_sia1:
         st.success("Layout 11.6")
         st.caption("Produção Ambulatorial")
-        st.button("Acessar 11.6", key="btn_dash_11_6", use_container_width=True)
+        st.button("Acessar 11.6", key="btn_dash_11_6", width='stretch')
     with c_sia2:
         st.success("Layout 11.7")
         st.caption("Apuração Ambulatorial")
-        st.button("Acessar 11.7", key="btn_dash_11_7", use_container_width=True)
+        st.button("Acessar 11.7", key="btn_dash_11_7", width='stretch')
 
 if __name__ == "__main__":
     main()

@@ -55,6 +55,6 @@ def render_db_explorer():
                 success, df = HealthDataIngestor.get_table_preview(db_path, selected_table)
                 
                 if success:
-                    st.dataframe(df, use_container_width=True)
+                    st.dataframe(df, width='stretch')
                 else:
                     st.error(f"Erro ao buscar dados: {df}")

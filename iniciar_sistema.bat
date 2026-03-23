@@ -48,7 +48,8 @@ if %errorlevel% neq 0 exit /b 1
 
 :: 5. Run App
 call :Log "[RUN] Iniciando Aplicacao..."
-"%PYTHON_EMBED%\python.exe" -I -m streamlit run src/ui/app.py >> "%LOG_FILE%" 2>&1
+:: O "echo. |" evita que o Streamlit trave esperando o usuario digitar um email na primeira execucao (Onboarding Prompt)
+echo. | "%PYTHON_EMBED%\python.exe" -I -m streamlit run src/ui/app.py >> "%LOG_FILE%" 2>&1
 
 if %errorlevel% neq 0 (
     call :Log "[ERRO] A aplicacao encerrou com erro (Codigo: %errorlevel%)."

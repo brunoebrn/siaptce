@@ -13,6 +13,11 @@ class FirebirdConnector:
     def connect(self):
         # Determine strict library path
         drivers_path = os.path.abspath(os.path.join(os.path.dirname(__file__), '../../drivers'))
+        
+        # FIX: Permitir que o fbclient.dll encontre suas dependencias (msvcr80.dll, etc) na mesma pasta (Python 3.8+)
+        if hasattr(os, 'add_dll_directory'):
+            os.add_dll_directory(drivers_path)
+            
         fb_lib = os.path.join(drivers_path, 'fbclient.dll')
         
         # FEATURE: Support Embedded Mode if user provided fbembed.dll

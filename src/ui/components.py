@@ -50,7 +50,7 @@ def render_data_preview(db_path: str, table_name: str):
         df = pd.read_sql(f"SELECT * FROM {table_name}", conn)
         conn.close()
         
-        st.dataframe(df, use_container_width=True)
+        st.dataframe(df, width='stretch')
         st.caption(f"Total de Registros: {len(df)}")
 
         # Excel Export
