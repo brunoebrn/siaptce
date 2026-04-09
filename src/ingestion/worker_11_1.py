@@ -74,7 +74,7 @@ def transform_and_load(dsn, user, password, output_db, mapping_json):
                      
              df_result['ATIVIDADEPRINCIPAL'] = df_result['ATIVIDADEPRINCIPAL'].apply(clean_activity)
 
-        df_result['SISTEMASSUS'] = 1
+        df_result['SISTEMASUS'] = 1
         
         rename_map = {
             'CNES': 'CNES',
@@ -86,7 +86,7 @@ def transform_and_load(dsn, user, password, output_db, mapping_json):
             'CPFDIRETOR': 'CPFDiretor',
             'TIPOESTABELECIMENTOSAUDE': 'TipoEstabelecimentoSaude',
             'ATIVIDADEPRINCIPAL': 'AtividadePrincipal',
-            'SISTEMASSUS': 'SistemaSUS'
+            'SISTEMASUS': 'SistemaSUS'
         }
         df_result = df_result.rename(columns=rename_map)
 

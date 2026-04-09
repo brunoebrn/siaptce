@@ -39,21 +39,31 @@ call :EnableSitePackages "%PYTHON_WORKER%"
 :: 3. Check and Install Dependencies for UI (Embed)
 call :Log "[CHECK] Verificando dependencias da Interface (Streamlit)..."
 call :CheckAndInstall "%PYTHON_EMBED%\python.exe" "streamlit" "%PROJECT_ROOT%requirements.txt"
-if %errorlevel% neq 0 exit /b 1
+if %errorlevel% neq 0 (
+    echo [ERRO FATAL] A checagem do Streamlit falhou.
+    echo DICA: Verifique se o seu Windows tem o pacote 'Visual C++ Redistributable' instalado.
+    pause
+    exit /b 1
+)
 
 :: 4. Check and Install Dependencies for Worker (DB)
 call :Log "[CHECK] Verificando dependencias do Banco (FDB/Pandas)..."
 call :CheckAndInstall "%PYTHON_WORKER%\python.exe" "fdb" "%PROJECT_ROOT%requirements-ingestion.txt"
-if %errorlevel% neq 0 exit /b 1
+if %errorlevel% neq 0 (
+    echo [ERRO FATAL] A checagem do banco FDB falhou.
+    pause
+    exit /b 1
+)
 
 :: 5. Run App
 call :Log "[RUN] Iniciando Aplicacao..."
-:: O "echo. |" evita que o Streamlit trave esperando o usuario digitar um email na primeira execucao (Onboarding Prompt)
-echo. | "%PYTHON_EMBED%\python.exe" -I -m streamlit run src/ui/app.py >> "%LOG_FILE%" 2>&1
+:: Desabilitar envio de estatisticas para evitar o prompt interativo (que trava a execucao)
+set "STREAMLIT_BROWSER_GATHER_USAGE_STATS=false"
+set "STREAMLIT_SERVER_HEADLESS=false"
+"%PYTHON_EMBED%\python.exe" -I -m streamlit run src/ui/app.py
 
 if %errorlevel% neq 0 (
     call :Log "[ERRO] A aplicacao encerrou com erro (Codigo: %errorlevel%)."
-    echo Verifique o arquivo startup_log.txt para detalhes.
     pause
 ) else (
     call :Log "[INFO] Aplicacao encerrada pelo usuario."
