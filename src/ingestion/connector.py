@@ -7,6 +7,7 @@ class FirebirdConnector:
         self.user = user
         self.password = password
         self.role = role
+        # WIN1252 é o padrão para Firebird no Brasil (Sistemas de Saúde)
         self.charset = charset
         self.connection = None
 

@@ -270,6 +270,18 @@ def main():
 
     # --- Sidebar Navigation ---
     render_sidebar_navigation()
+    
+    # --- Status das Conexões (Persistente na Barra Lateral) ---
+    if st.session_state.step != 'setup':
+        st.sidebar.divider()
+        st.sidebar.subheader("Bases Conectadas")
+        for db, status in st.session_state.db_status.items():
+            if status is True:
+                st.sidebar.caption(f"🟢 **{db}**: OK")
+            elif status is False:
+                st.sidebar.caption(f"🔴 **{db}**: Erro")
+            else:
+                st.sidebar.caption(f"⚪ **{db}**: --")
 
     # --- Main Content Routing (Dynamic) ---
     current_step = st.session_state.step
