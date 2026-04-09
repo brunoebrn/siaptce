@@ -30,124 +30,32 @@ import src.ui.layouts.layout_11_8 as layout_11_8
 import src.ui.db_explorer as db_explorer
 import src.ui.xlsx_converter as xlsx_converter
 
-def main():
-    st.set_page_config(
-        page_title="SIAP - Auditoria e Ingestão",
-        layout="wide",
-        initial_sidebar_state="expanded"
-    )
-    logger.info("Application Started")
-
-    # Initialize Session State
-    if 'step' not in st.session_state:
-        st.session_state.step = 'setup'
-    if 'db_paths' not in st.session_state:
-        st.session_state.db_paths = {
-            'CNES': '',
-            'FPO': '',
-            'SIH': '',
-            'SIA': ''
-        }
-    if 'db_status' not in st.session_state:
-        st.session_state.db_status = {
-            'CNES': None,
-            'FPO': None,
-            'SIH': None,
-            'SIA': None
-        }
-    if 'db_errors' not in st.session_state:
-        st.session_state.db_errors = {}
-
-    # --- Global Filters ---
-    st.sidebar.header("Configurações Gerais")
-    st.session_state['global_codigo_tce'] = st.sidebar.text_input("Código TCE", "000")
-    st.session_state['global_exercicio'] = st.sidebar.text_input("Exercício", "2024")
-    st.session_state['global_mes'] = st.sidebar.selectbox("Mês", [f"{i:02d}" for i in range(1, 13)])
-    st.sidebar.divider()
-
-    # --- Sidebar Navigation ---
-    render_sidebar_navigation()
-
-    # --- Main Content Routing ---
-    if st.session_state.step == 'setup':
-        render_setup_screen()
-    elif st.session_state.step == 'dashboard':
-        render_dashboard_screen()
-    elif st.session_state.step == 'db_explorer':
-        db_explorer.render_db_explorer()
-    elif st.session_state.step == 'xlsx_converter':
-        xlsx_converter.render_xlsx_converter()
-    elif st.session_state.step == 'layout_11_1':
-        layout_11_1.render_layout_11_1()
-    elif st.session_state.step == 'layout_11_2':
-        layout_11_2.render_layout_11_2()
-    elif st.session_state.step == 'layout_11_3':
-        layout_11_3.render_layout_11_3()
-    elif st.session_state.step == 'layout_11_4':
-        layout_11_4.render_layout_11_4()
-    elif st.session_state.step == 'layout_11_5':
-        layout_11_5.render_layout_11_5()
-    elif st.session_state.step == 'layout_11_8':
-        layout_11_8.render_layout_11_8()
-
 def render_sidebar_navigation():
     """Renders buttons in the sidebar based on the current context."""
-    
-    # Don't show nav if in Setup
     if st.session_state.step == 'setup':
         return
 
     st.sidebar.subheader("Navegação")
     
-    # "Voltar para Configuração" - Only on Dashboard
+    # Botões de Retorno Estruturados
     if st.session_state.step == 'dashboard':
         if st.sidebar.button("⬅️ Voltar para Configuração", width='stretch'):
             st.session_state.step = 'setup'
             st.rerun()
-        st.sidebar.divider()
-
-    # "Voltar ao Painel" - On all pages EXCEPT Dashboard and Setup
-    if st.session_state.step != 'dashboard' and st.session_state.step != 'setup':
+    else:
         if st.sidebar.button("🏠 Voltar ao Painel", width='stretch'):
              st.session_state.step = 'dashboard'
              st.rerun()
-        st.sidebar.divider()
-        
-    # List of Layouts (Direct Access)
+             
+    st.sidebar.divider()
     st.sidebar.markdown("**Acesso Rápido**")
     
-    # Use distinct keys to avoid conflict if multiple buttons exist
-    if st.sidebar.button("🏥 11.1 - Estabelecimentos", width='stretch'):
-        st.session_state.step = 'layout_11_1'
-        st.rerun()
-        
-    if st.sidebar.button("👨‍⚕️ 11.2 - Vínculos", width='stretch'):
-        st.session_state.step = 'layout_11_2'
-        st.rerun()
-
-    if st.sidebar.button("🛏️ 11.3 - Leitos", width='stretch'):
-        st.session_state.step = 'layout_11_3'
-        st.rerun()
-
-    if st.sidebar.button("🔬 11.4 - Equipamentos", width='stretch'):
-        st.session_state.step = 'layout_11_4'
-        st.rerun()
-        
-    if st.sidebar.button("💰 11.5 - Orçamento", width='stretch'):
-        st.session_state.step = 'layout_11_5'
-        st.rerun()
-
-    if st.sidebar.button("🚑 11.8 - Internação", width='stretch'):
-        st.session_state.step = 'layout_11_8'
-        st.rerun()
-        
-    if st.sidebar.button("📂 DB Explorer", width='stretch'):
-        st.session_state.step = 'db_explorer'
-        st.rerun()
-        
-    if st.sidebar.button("🔄 Conversor XLSX", width='stretch'):
-        st.session_state.step = 'xlsx_converter'
-        st.rerun()
+    # Renderização Dinâmica do Menu de Layouts
+    for page_id, info in PAGES.items():
+        if info.get("show_in_sidebar"):
+            if st.sidebar.button(info["title"], key=f"nav_{page_id}", width='stretch'):
+                st.session_state.step = page_id
+                st.rerun()
 
     st.sidebar.divider()
     if st.sidebar.button("❌ Encerrar Sistema", type="primary", width='stretch'):
@@ -319,6 +227,56 @@ def render_dashboard_screen():
         st.success("Layout 11.7")
         st.caption("Apuração Ambulatorial")
         st.button("Acessar 11.7", key="btn_dash_11_7", width='stretch')
+
+# --- Roteamento Dinâmico (Registry Pattern) ---
+# Definido após as funções locais para evitar NameError
+PAGES = {
+    'setup': {"title": "Configuração", "render": render_setup_screen, "show_in_sidebar": False},
+    'dashboard': {"title": "Painel de Controle", "render": render_dashboard_screen, "show_in_sidebar": False},
+    'layout_11_1': {"title": "🏥 11.1 - Estabelecimentos", "render": layout_11_1.render_layout_11_1, "show_in_sidebar": True},
+    'layout_11_2': {"title": "👨‍⚕️ 11.2 - Vínculos", "render": layout_11_2.render_layout_11_2, "show_in_sidebar": True},
+    'layout_11_3': {"title": "🛏️ 11.3 - Leitos", "render": layout_11_3.render_layout_11_3, "show_in_sidebar": True},
+    'layout_11_4': {"title": "🔬 11.4 - Equipamentos", "render": layout_11_4.render_layout_11_4, "show_in_sidebar": True},
+    'layout_11_5': {"title": "💰 11.5 - Orçamento", "render": layout_11_5.render_layout_11_5, "show_in_sidebar": True},
+    'layout_11_8': {"title": "🚑 11.8 - Internação", "render": layout_11_8.render_layout_11_8, "show_in_sidebar": True},
+    'db_explorer': {"title": "📂 DB Explorer", "render": db_explorer.render_db_explorer, "show_in_sidebar": True},
+    'xlsx_converter': {"title": "🔄 Conversor XLSX", "render": xlsx_converter.render_xlsx_converter, "show_in_sidebar": True},
+}
+
+def main():
+    st.set_page_config(
+        page_title="SIAP - Auditoria e Ingestão",
+        layout="wide",
+        initial_sidebar_state="expanded"
+    )
+    logger.info("Application Started")
+
+    # Initialize Session State
+    if 'step' not in st.session_state:
+        st.session_state.step = 'setup'
+    if 'db_paths' not in st.session_state:
+        st.session_state.db_paths = {'CNES': '', 'FPO': '', 'SIH': '', 'SIA': ''}
+    if 'db_status' not in st.session_state:
+        st.session_state.db_status = {'CNES': None, 'FPO': None, 'SIH': None, 'SIA': None}
+    if 'db_errors' not in st.session_state:
+        st.session_state.db_errors = {}
+
+    # --- Global Filters ---
+    st.sidebar.header("Configurações Gerais")
+    st.session_state['global_codigo_tce'] = st.sidebar.text_input("Código TCE", "000")
+    st.session_state['global_exercicio'] = st.sidebar.text_input("Exercício", "2024")
+    st.session_state['global_mes'] = st.sidebar.selectbox("Mês", [f"{i:02d}" for i in range(1, 13)])
+    st.sidebar.divider()
+
+    # --- Sidebar Navigation ---
+    render_sidebar_navigation()
+
+    # --- Main Content Routing (Dynamic) ---
+    current_step = st.session_state.step
+    if current_step in PAGES:
+        PAGES[current_step]["render"]()
+    else:
+        st.error(f"Página não encontrada: {current_step}")
 
 if __name__ == "__main__":
     main()

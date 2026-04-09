@@ -9,363 +9,112 @@ logger = setup_logger("FirebirdEngine")
 
 class HealthDataIngestor:
     """
-    Class responsible for validating and managing connections to Health databases (CNES, FPO, SIH, SIA).
-    Uses a 32-bit subprocess to ensure compatibility with legacy Firebird DLLs.
+    Classe responsável por gerenciar conexões com bancos de dados de saúde legados.
+    Utiliza subprocessos 32-bit para compatibilidade com drivers Firebird antigos.
     """
     
     @staticmethod
     def _get_worker_executable():
-        """
-        Determines the implementation of Python to use for workers.
-        Prioritizes 'python_worker/python.exe' (32-bit portable), 
-        falls back to 'python_embed/python.exe' or system python.
-        """
-        # 1. Look for sibling 'python_worker' folder relative to project root
-        # Engine is in src/ingestion/, so root is ../../
         base_dir = os.path.dirname(os.path.dirname(os.path.dirname(__file__)))
         worker_path = os.path.join(base_dir, 'python_worker', 'python.exe')
-        
-        if os.path.exists(worker_path):
-            return worker_path
-            
-        # 2. Fallback: use current interpreter (dev mode or incorrectly configured)
-        return sys.executable
-    
+        return worker_path if os.path.exists(worker_path) else sys.executable
+
     @staticmethod
-    def check_connection(path: str, user: str = 'SYSDBA', password: str = 'masterkey') -> tuple[bool, str]:
-        """
-        Attempts to connect to the Firebird database at the given path.
-        Returns (True, "OK") if successful, (False, ErrorMessage) otherwise.
-        """
-        if not path:
-             return False, "Caminho vazio."
-             
-        # Normalize path
-        path = path.strip().strip('"')
-        
-        if not os.path.exists(path):
-            return False, f"Arquivo não encontrado: {path}"
-            
-        # Defines the worker script path
-        worker_script = os.path.join(os.path.dirname(__file__), 'validate_conn.py')
-        
-        # Command to run in 32-bit environment
-        cmd = [
-            HealthDataIngestor._get_worker_executable(), worker_script,
-            "--path", path,
-            "--user", user,
-            "--password", password
-        ]
+    def _run_32bit_worker(script_name: str, args: list) -> tuple[bool, dict]:
+        """Auxiliar genérico para rodar workers utilitários 32-bit com captura de erro robusta."""
+        worker_script = os.path.join(os.path.dirname(__file__), script_name)
+        cmd = [HealthDataIngestor._get_worker_executable(), worker_script] + args
         
         try:
-            logger.info(f"Checking connection to: {path}")
-            # Capture stdout to parse JSON result
+            # check=True levantará CalledProcessError se o status != 0
             proc = subprocess.run(cmd, capture_output=True, text=True, check=True)
             output = proc.stdout.strip()
             
-            # Log stderr from worker if any
-            if proc.stderr:
-                logger.warning(f"Worker stderr: {proc.stderr}")
-            
-            # Try to find JSON in the output (ignoring potential print noise)
-            # We look for the last line that looks like JSON
-            lines = output.strip().split('\n')
+            lines = output.split('\n')
             last_line = lines[-1] if lines else ""
             
-            try:
-                data = json.loads(last_line)
-                if data.get("success"):
-                    return True, "Conectado com sucesso."
-                else:
-                    return False, data.get("error", "Erro desconhecido.")
-            except json.JSONDecodeError:
-                # If we catch a glimpse of the error in stdout/stderr
-                return False, f"Erro ao decodificar resposta do worker: {output} | {proc.stderr}"
-                
+            data = json.loads(last_line)
+            if data.get("success"):
+                return True, data
+            return False, data.get("error", "Erro desconhecido no worker.")
         except subprocess.CalledProcessError as e:
-            logger.error(f"Worker crashed: {e.stderr}")
-            return False, f"Falha no Worker 32-bit: {e.stderr}"
+            # Captura o traceback real do worker 32-bit
+            error_msg = e.stderr.strip() or e.stdout.strip() or str(e)
+            logger.error(f"Worker {script_name} crashou: {error_msg}")
+            return False, f"Erro no Worker 32-bit: {error_msg}"
         except Exception as e:
-            return False, f"Erro inesperado: {str(e)}"
+            return False, f"Falha na execução do worker {script_name}: {str(e)}"
+
+    @staticmethod
+    def check_connection(path: str, user: str = 'SYSDBA', password: str = 'masterkey') -> tuple[bool, str]:
+        """Valida a conexão com o banco de dados."""
+        if not path: return False, "Caminho vazio."
+        path = path.strip().strip('"')
+        if not os.path.exists(path): return False, f"Arquivo não encontrado: {path}"
+        
+        success, result = HealthDataIngestor._run_32bit_worker('validate_conn.py', ["--path", path, "--user", user, "--password", password])
+        return success, "Conectado com sucesso." if success else result
 
     @staticmethod
     def get_schema(path: str, user: str = 'SYSDBA', password: str = 'masterkey') -> tuple[bool, dict]:
-        """
-        Retrieves the schema (Tables and Columns) from the database via 32-bit worker.
-        Returns (True, SchemaDict) or (False, ErrorMsg).
-        """
-        if not path or not os.path.exists(path):
-            return False, "Caminho inválido."
-            
-        worker_script = os.path.join(os.path.dirname(__file__), 'worker_schema.py')
-        
-        cmd = [
-            HealthDataIngestor._get_worker_executable(), worker_script,
-            "--dsn", path.strip().strip('"'),
-            "--user", user,
-            "--password", password
-        ]
-        
-        try:
-            proc = subprocess.run(cmd, capture_output=True, text=True, check=True)
-            output = proc.stdout.strip()
-            
-            # Robust parsing (last line)
-            lines = output.strip().split('\n')
-            last_line = lines[-1] if lines else ""
-            
-            data = json.loads(last_line)
-            if data.get("success"):
-                return True, data.get("schema")
-            else:
-                return False, data.get("error", "Erro desconhecido ao ler schema.")
-                
-        except Exception as e:
-            return False, f"Erro ao buscar schema: {e}"
-
-    @staticmethod
-    def generate_layout_11_1(path: str, mapping: dict, user: str = 'SYSDBA', password: str = 'masterkey') -> tuple[bool, str]:
-        """
-        Executes the ETL for Layout 11.1 using the 32-bit worker with DYNAMIC MAPPING.
-        Mapping format: {"table": "NAME", "columns": {"Target": "Source"}}
-        """
-        if not path or not os.path.exists(path):
-            return False, "Caminho do CNES inválido."
-            
-        worker_script = os.path.join(os.path.dirname(__file__), 'worker_11_1.py')
-        output_db = os.path.abspath(os.path.join(os.path.dirname(__file__), '../../data/sqlite/layout_11_1.db'))
-        
-        # Ensure output dir exists
-        os.makedirs(os.path.dirname(output_db), exist_ok=True)
-        
-        # Serialize mapping to JSON string to pass as arg
-        mapping_json = json.dumps(mapping)
-        
-        cmd = [
-            HealthDataIngestor._get_worker_executable(), worker_script,
-            "--dsn", path.strip().strip('"'),
-            "--user", user,
-            "--password", password,
-            "--output", output_db,
-            "--mapping", mapping_json
-        ]
-        
-        try:
-            logger.info(f"Generating Layout 11.1 for {path}")
-            # We check=True, so it raises on 1 exit code
-            proc = subprocess.run(cmd, check=True, capture_output=True, text=True)
-            if proc.stderr:
-                logger.warning(f"Worker 11.1 stderr: {proc.stderr}")
-            return True, output_db
-        except subprocess.CalledProcessError as e:
-            logger.error(f"Worker 11.1 Failed: {e.stderr}")
-            return False, f"Erro no ETL: {e.stderr}"
-        except Exception as e:
-            return False, f"Erro: {str(e)}"
+        """Obtém o schema (Tabelas e Colunas) do banco."""
+        success, result = HealthDataIngestor._run_32bit_worker('worker_schema.py', ["--dsn", path.strip().strip('"'), "--user", user, "--password", password])
+        return success, result.get("schema") if success else result
 
     @staticmethod
     def get_table_preview(path: str, table_name: str, user: str = 'SYSDBA', password: str = 'masterkey') -> tuple[bool, object]:
-        """
-        Retrieves top 50 rows of a table via 32-bit worker.
-        Returns (True, pd.DataFrame) or (False, ErrorMsg).
-        """
-        if not path or not os.path.exists(path):
-            return False, "Caminho inválido."
-            
-        worker_script = os.path.join(os.path.dirname(__file__), 'worker_query.py')
-        
-        cmd = [
-            HealthDataIngestor._get_worker_executable(), worker_script,
-            "--dsn", path.strip().strip('"'),
-            "--user", user,
-            "--password", password,
-            "--table", table_name
-        ]
-            
-        try:
-            proc = subprocess.run(cmd, capture_output=True, text=True, check=True)
-            output = proc.stdout.strip()
-            
-            # Robust parsing (last line)
-            lines = output.strip().split('\n')
-            last_line = lines[-1] if lines else ""
-            
-            data = json.loads(last_line)
-            if data.get("success"):
-                df = pd.DataFrame(data.get("data"))
-                return True, df
-            else:
-                return False, data.get("error", "Erro desconhecido.")
-                
-        except subprocess.CalledProcessError as e:
-            logger.error(f"Preview Failed: {e.stderr}")
-            return False, f"Erro ao buscar dados: {e.stderr}"
-        except Exception as e:
-            return False, f"Erro inesperado: {str(e)}"
+        """Busca as primeiras 50 linhas de uma tabela para visualização."""
+        success, result = HealthDataIngestor._run_32bit_worker('worker_query.py', ["--dsn", path.strip().strip('"'), "--user", user, "--password", password, "--table", table_name])
+        if success:
+            return True, pd.DataFrame(result.get("data"))
+        return False, result
 
     @staticmethod
-    def generate_layout_11_2(path: str, mapping: dict, user: str = 'SYSDBA', password: str = 'masterkey') -> tuple[bool, str]:
-        """
-        Runs the ETL process for Layout 11.2 (VinculoProfissional from LFCES021/018/004) in a separate 32-bit process.
-        """
-        if not path or not os.path.exists(path):
-            return False, "Caminho do CNES inválido."
+    def generate_layout(layout_id: str, path: str, mapping: dict, competencia: str = None, user: str = 'SYSDBA', password: str = 'masterkey') -> tuple[bool, str]:
+        """Executa o pipeline ETL genérico para um layout."""
+        import tempfile
+        if not path or not os.path.exists(path): return False, f"Caminho inválido: {path}"
             
-        worker_script = os.path.join(os.path.dirname(__file__), 'worker_11_2.py')
-        output_db = os.path.abspath(os.path.join(os.path.dirname(__file__), '../../data/sqlite/layout_11_2.db'))
-        
+        worker_script = os.path.join(os.path.dirname(__file__), 'generic_worker.py')
+        layout_slug = layout_id.replace('.', '_')
+        output_db = os.path.abspath(os.path.join(os.path.dirname(__file__), f'../../data/sqlite/layout_{layout_slug}.db'))
         os.makedirs(os.path.dirname(output_db), exist_ok=True)
         
-        # Serialize mapping mapping dict to JSON for CLI arg
-        mapping_json = json.dumps(mapping)
+        # IPC Seguro via Arquivo Temporário
+        config_payload = {
+            "layout_id": layout_id, "dsn": path.strip().strip('"'), "user": user, "password": password,
+            "output_db": output_db, "mapping": mapping, "competencia": competencia
+        }
         
-        cmd = [
-            HealthDataIngestor._get_worker_executable(), worker_script,
-            '--dsn', path.strip().strip('"'),
-            '--user', user,
-            '--password', password,
-            '--output', output_db,
-            '--mapping', mapping_json
-        ]
+        with tempfile.NamedTemporaryFile(mode='w', suffix='.json', delete=False, encoding='utf-8') as tf:
+            json.dump(config_payload, tf)
+            temp_config_path = tf.name
+
+        cmd = [HealthDataIngestor._get_worker_executable(), worker_script, "--config", temp_config_path]
         
         try:
-            logger.info(f"Generating Layout 11.2 for {path}")
-            result = subprocess.run(cmd, capture_output=True, text=True, check=True)
-            if result.stderr:
-                 logger.warning(f"Worker 11.2 stderr: {result.stderr}")
+            logger.info(f"Gerando Layout {layout_id} via IPC Seguro")
+            subprocess.run(cmd, check=True, capture_output=True, text=True)
+            if os.path.exists(temp_config_path): os.remove(temp_config_path)
             return True, output_db
         except subprocess.CalledProcessError as e:
-            logger.error(f"Worker 11.2 Failed: {e.stderr}")
-            return False, f"Erro no Worker 11.2: {e.stderr}"
+            if os.path.exists(temp_config_path): os.remove(temp_config_path)
+            logger.error(f"Worker {layout_id} falhou: {e.stderr}")
+            return False, f"Erro no ETL: {e.stderr}"
         except Exception as e:
+            if os.path.exists(temp_config_path): os.remove(temp_config_path)
             return False, f"Erro: {str(e)}"
 
+    # Aliases para manter compatibilidade com a UI atual
     @staticmethod
-    def generate_layout_11_3(path: str, mapping: dict, user: str = 'SYSDBA', password: str = 'masterkey') -> tuple[bool, str]:
-        """
-        Runs the ETL process for Layout 11.3 (EstabelecimentoLeito from LFCES002/004) in a separate 32-bit process.
-        """
-        worker_script = os.path.join(os.path.dirname(__file__), 'worker_11_3.py')
-        output_db = os.path.abspath(os.path.join(os.path.dirname(__file__), '../../data/sqlite/layout_11_3.db'))
-        os.makedirs(os.path.dirname(output_db), exist_ok=True)
-        mapping_json = json.dumps(mapping)
-        
-        cmd = [
-            HealthDataIngestor._get_worker_executable(), worker_script,
-            '--dsn', path.strip().strip('"'),
-            '--user', user,
-            '--password', password,
-            '--output', output_db,
-            '--mapping', mapping_json
-        ]
-        
-        try:
-            logger.info(f"Generating Layout 11.3 for {path}")
-            result = subprocess.run(cmd, capture_output=True, text=True, check=True)
-            if result.stderr:
-                 logger.warning(f"Worker 11.3 stderr: {result.stderr}")
-            return True, output_db
-        except subprocess.CalledProcessError as e:
-            logger.error(f"Worker 11.3 Failed: {e.stderr}")
-            return False, f"Erro no Worker 11.3: {e.stderr}"
-        except Exception as e:
-            return False, f"Erro: {str(e)}"
+    def generate_layout_11_1(p, m, u='SYSDBA', pw='masterkey'): return HealthDataIngestor.generate_layout("11.1", p, m, user=u, password=pw)
     @staticmethod
-    def generate_layout_11_4(path: str, mapping: dict, user: str = 'SYSDBA', password: str = 'masterkey') -> tuple[bool, str]:
-        """
-        Runs the ETL process for Layout 11.4 (Equipamentos from LFCES020/004) in a separate 32-bit process.
-        """
-        worker_script = os.path.join(os.path.dirname(__file__), 'worker_11_4.py')
-        output_db = os.path.abspath(os.path.join(os.path.dirname(__file__), '../../data/sqlite/layout_11_4.db'))
-        os.makedirs(os.path.dirname(output_db), exist_ok=True)
-        mapping_json = json.dumps(mapping)
-        
-        cmd = [
-            HealthDataIngestor._get_worker_executable(), worker_script,
-            '--dsn', path.strip().strip('"'),
-            '--user', user,
-            '--password', password,
-            '--output', output_db,
-            '--mapping', mapping_json
-        ]
-        
-        try:
-            logger.info(f"Generating Layout 11.4 for {path}")
-            result = subprocess.run(cmd, capture_output=True, text=True, check=True)
-            if result.stderr:
-                 logger.warning(f"Worker 11.4 stderr: {result.stderr}")
-            return True, output_db
-        except subprocess.CalledProcessError as e:
-            logger.error(f"Worker 11.4 Failed: {e.stderr}")
-            return False, f"Erro no Worker 11.4: {e.stderr}"
-        except Exception as e:
-            return False, f"Erro: {str(e)}"
+    def generate_layout_11_2(p, m, u='SYSDBA', pw='masterkey'): return HealthDataIngestor.generate_layout("11.2", p, m, user=u, password=pw)
     @staticmethod
-    def generate_layout_11_5(path: str, mapping: dict, year: str, month: str, user: str = 'SYSDBA', password: str = 'masterkey') -> tuple[bool, str]:
-        """
-        Runs the ETL process for Layout 11.5 (FPO - FichaProgramacaoOrcamentaria)
-        Filters by Competence (AAAAMM)
-        """
-        worker_script = os.path.join(os.path.dirname(__file__), 'worker_11_5.py')
-        output_db = os.path.abspath(os.path.join(os.path.dirname(__file__), '../../data/sqlite/layout_11_5.db'))
-        os.makedirs(os.path.dirname(output_db), exist_ok=True)
-        mapping_json = json.dumps(mapping)
-        
-        competencia = f"{year}{month}"
-        
-        cmd = [
-            HealthDataIngestor._get_worker_executable(), worker_script,
-            '--dsn', path.strip().strip('"'),
-            '--user', user,
-            '--password', password,
-            '--output', output_db,
-            '--mapping', mapping_json,
-            '--competencia', competencia
-        ]
-        
-        try:
-            logger.info(f"Generating Layout 11.5 for {path}")
-            result = subprocess.run(cmd, capture_output=True, text=True, check=True)
-            if result.stderr:
-                 logger.warning(f"Worker 11.5 stderr: {result.stderr}")
-            return True, output_db
-        except subprocess.CalledProcessError as e:
-            logger.error(f"Worker 11.5 Failed: {e.stderr}")
-            return False, f"Erro no Worker 11.5: {e.stderr}"
-        except Exception as e:
-            return False, f"Erro: {str(e)}"
-
+    def generate_layout_11_3(p, m, u='SYSDBA', pw='masterkey'): return HealthDataIngestor.generate_layout("11.3", p, m, user=u, password=pw)
     @staticmethod
-    def generate_layout_11_8(path: str, mapping: dict, year: str, month: str, user: str = 'SYSDBA', password: str = 'masterkey') -> tuple[bool, str]:
-        """
-        Runs the ETL process for Layout 11.8 (SIH - AutorizacaoInternacaoHospitalar)
-        Filters by Competence (AAAAMM)
-        """
-        worker_script = os.path.join(os.path.dirname(__file__), 'worker_11_8.py')
-        output_db = os.path.abspath(os.path.join(os.path.dirname(__file__), '../../data/sqlite/layout_11_8.db'))
-        os.makedirs(os.path.dirname(output_db), exist_ok=True)
-        mapping_json = json.dumps(mapping)
-        
-        competencia = f"{year}{month}"
-        
-        cmd = [
-            HealthDataIngestor._get_worker_executable(), worker_script,
-            '--dsn', path.strip().strip('"'),
-            '--user', user,
-            '--password', password,
-            '--output', output_db,
-            '--mapping', mapping_json,
-            '--competencia', competencia
-        ]
-        
-        try:
-            logger.info(f"Generating Layout 11.8 for {path}")
-            result = subprocess.run(cmd, capture_output=True, text=True, check=True)
-            if result.stderr:
-                 logger.warning(f"Worker 11.8 stderr: {result.stderr}")
-            return True, output_db
-        except subprocess.CalledProcessError as e:
-            logger.error(f"Worker 11.8 Failed: {e.stderr}")
-            return False, f"Erro no Worker 11.8: {e.stderr}"
-        except Exception as e:
-            return False, f"Erro: {str(e)}"
+    def generate_layout_11_4(p, m, u='SYSDBA', pw='masterkey'): return HealthDataIngestor.generate_layout("11.4", p, m, user=u, password=pw)
+    @staticmethod
+    def generate_layout_11_5(p, m, y, mo, u='SYSDBA', pw='masterkey'): return HealthDataIngestor.generate_layout("11.5", p, m, competencia=f"{y}{mo}", user=u, password=pw)
+    @staticmethod
+    def generate_layout_11_8(p, m, y, mo, u='SYSDBA', pw='masterkey'): return HealthDataIngestor.generate_layout("11.8", p, m, competencia=f"{y}{mo}", user=u, password=pw)

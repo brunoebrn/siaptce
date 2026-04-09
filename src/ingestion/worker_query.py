@@ -1,57 +1,55 @@
 import sys
 import os
 import json
+import argparse
 import pandas as pd
+
 # Add root to path
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '../../')))
-
-from src.utils.logger import setup_logger
 from src.ingestion.connector import FirebirdConnector
 
-# Disable file logging for workers (avoid lock contention)
-logger = setup_logger("Worker_Query", log_to_file=False)
-
-def get_table_preview(dsn, user, password, table_name, limit=50):
+def get_preview(dsn, user, password, table_name):
     try:
-        conn = FirebirdConnector(dsn, user, password)
-        conn.connect()
-        
-        # Sanitize table name (basic check)
-        if not table_name.isidentifier() and not all(c.isalnum() or c == '_' for c in table_name):
-             logger.warning(f"Tentativa de SQL Injection ou nome invalido: {table_name}")
-             return {"success": False, "error": "Nome de tabela inválido"}
-             
-        query = f"SELECT FIRST {limit} * FROM {table_name}"
-        rows, cols = conn.execute_query(query)
-        conn.close()
-        
-        # Serialize to dict list
-        data = [dict(zip(cols, row)) for row in rows]
-        
-        return {"success": True, "columns": cols, "data": data}
+        with FirebirdConnector(dsn, user, password) as connector:
+            # Pega as primeiras 50 linhas para preview
+            query = f"SELECT FIRST 50 * FROM {table_name}"
+            data, columns = connector.execute_query(query)
+            
+            df = pd.DataFrame(data, columns=columns)
+            
+            # Limpeza de strings (CHAR fields)
+            for col in df.select_dtypes([object]):
+                df[col] = df[col].apply(lambda x: x.strip() if isinstance(x, str) else x)
+            
+            # --- Correção de Serialização ---
+            # Converte colunas de Data/Hora para string ISO
+            for col in df.select_dtypes(include=['datetime', 'datetimetz']):
+                df[col] = df[col].dt.strftime('%Y-%m-%d %H:%M:%S')
+            
+            # Converte Decimais/Objetos genéricos (como date simples) para string
+            # Isso evita TypeError: Object of type Decimal/date is not JSON serializable
+            def robust_serialize(val):
+                if isinstance(val, (pd.Timestamp, pd.Series)): return str(val)
+                import decimal
+                import datetime
+                if isinstance(val, (decimal.Decimal, datetime.date, datetime.time)):
+                    return str(val)
+                return val
 
+            df = df.applymap(robust_serialize)
+            
+            return {"success": True, "data": df.to_dict(orient='records')}
     except Exception as e:
-        logger.error(f"Erro na query: {e}")
-        return {"success": False, "error": str(e)}
+        import traceback
+        return {"success": False, "error": f"{str(e)}\n{traceback.format_exc()}"}
 
 if __name__ == "__main__":
-    try:
-        import argparse
-        parser = argparse.ArgumentParser()
-        parser.add_argument('--dsn', required=True)
-        parser.add_argument('--user', default='SYSDBA')
-        parser.add_argument('--password', default='masterkey')
-        parser.add_argument('--table', required=True)
-        
-        args = parser.parse_args()
-        
-        result = get_table_preview(args.dsn, args.user, args.password, args.table)
-        # Print JSON to stdout
-        print(json.dumps(result, default=str)) # default=str to handle dates etc
-
-    except Exception as e:
-        # If main fails (imports, args), log to stderr
-        logger.critical(f"Critical failure in worker: {e}")
-        # Even on crash, try to output a valid JSON error for the UI if possible, 
-        # but since we are in main crash, stderr is safer.
-        sys.exit(1)
+    parser = argparse.ArgumentParser()
+    parser.add_argument('--dsn', required=True)
+    parser.add_argument('--user', default='SYSDBA')
+    parser.add_argument('--password', default='masterkey')
+    parser.add_argument('--table', required=True)
+    args = parser.parse_args()
+    
+    result = get_preview(args.dsn, args.user, args.password, args.table)
+    print(json.dumps(result))

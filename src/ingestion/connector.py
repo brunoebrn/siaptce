@@ -10,6 +10,13 @@ class FirebirdConnector:
         self.charset = charset
         self.connection = None
 
+    def __enter__(self):
+        self.connect()
+        return self
+
+    def __exit__(self, exc_type, exc_val, exc_tb):
+        self.close()
+
     def connect(self):
         # Determine strict library path
         drivers_path = os.path.abspath(os.path.join(os.path.dirname(__file__), '../../drivers'))
